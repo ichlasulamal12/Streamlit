@@ -20,7 +20,7 @@ st.set_page_config(layout="wide")
 
 image = Image.open('logo.jpg')
 
-st.image(image, width = 500)
+st.image(image, width = 600)
 
 st.title('Crypto Price App')
 st.markdown("""
@@ -54,14 +54,14 @@ def expand_dict_col(col, prefix):
   return col.apply(lambda x: pd.Series(x)).add_prefix(prefix)
 
 @st.cache_data
-def load_data():
+def load_data(currency=currency_price_unit):
   base_url = "https://http-api.livecoinwatch.com/coins"
   params = {
       "offset" : 0,
       "limit" : 100,
       "sort" : "rank",
       "order" : "ascending",
-      "currency" : "USD"
+      "currency" : currency
   }
 
   response = httpx.get(base_url, params=params)
@@ -108,7 +108,7 @@ def load_data():
     df.drop(columns=[col], inplace=True)
   return df
 
-df = load_data()
+df = load_data(currency=currency_price_unit)
 
 ## Sidebar - Cryptocurrency selections
 sorted_coin = sorted( df['code'] )
@@ -131,7 +131,7 @@ selected_percent_timeframe = percent_dict[percent_timeframe]
 sort_values = col1.selectbox('Sort values?', ['Yes', 'No'])
 
 col2.subheader('Price Data of Selected Cryptocurrency')
-col2.write('Data Dimension: ' + str(df_selected_coin.shape[0]) + ' rows and ' + str(df_selected_coin.shape[1]) + ' columns')
+col2.write('Data Dimension: ' + str(df_coins.shape[0]) + ' rows and ' + str(df_coins.shape[1]) + ' columns')
 
 col2.dataframe(df_coins)
 
