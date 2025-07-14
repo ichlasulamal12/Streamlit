@@ -9,10 +9,10 @@ Setiap proyek berdiri sendiri dan dapat dijalankan secara terpisah sesuai kebutu
 
 Berikut beberapa proyek yang tersedia dalam repositori ini:
 
-- `dashboard_eda/`  
+- `EDA Cryptocurrency/`  
   Dashboard interaktif untuk analisis eksploratif data dan visualisasi distribusi.
 
-- `monitoring_model/`  
+- `Monitoring Model Tool/`  
   Aplikasi interaktif untuk melakukan proses monitoring model machine learning.
 
 ---
