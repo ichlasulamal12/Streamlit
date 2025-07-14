@@ -21,7 +21,7 @@ def remove_duplicates(df):
 
 def categorize_final_pd(df, segment):
     """
-    Mengelompokkan Final_PD_2 ke dalam 7 grup berdasarkan segmen.
+    Mengelompokkan Final_PD_2 ke dalam beberapa grup berdasarkan segmen.
     """
 
     def map_group_sme(pd_value):
@@ -86,20 +86,45 @@ def categorize_final_pd(df, segment):
 
     return df
 
-def add_expected(df):
+def add_expected(df, segment):
     """
-    Menambahkan nilai expected untuk setiap kelompok pd_group.
+    Menambahkan nilai expected untuk setiap kelompok pd_group sesuai segmen.
     """
-    expected_dict = {
-        "1": 0.0666,
-        "2": 0.1169,
-        "3": 0.2512,
-        "4": 0.2397,
-        "5": 0.1793,
-        "6": 0.0826,
-        "7": 0.0636
+    expected_dicts = {
+        "SME": {
+            "1": 0.0666,
+            "2": 0.1169,
+            "3": 0.2512,
+            "4": 0.2397,
+            "5": 0.1793,
+            "6": 0.0826,
+            "7": 0.0636
+        },
+        "Wholesale": {
+            "1": 0.0073,
+            "2": 0.0210,
+            "3": 0.0904,
+            "4": 0.2836,
+            "5": 0.3021,
+            "6": 0.1703,
+            "7": 0.1254
+        },
+        "Mortgage": {
+            "1": 0.0011,
+            "2": 0.0020,
+            "3": 0.0051,
+            "4": 0.0205,
+            "5": 0.0614,
+            "6": 0.2023,
+            "7": 0.7076
+        }
     }
-    df["expected"] = df["pd_group"].map(expected_dict)
+
+    expected_dict = expected_dicts.get(segment)
+    if expected_dict is None:
+        raise ValueError(f"Segment '{segment}' tidak dikenali.")
+
+    df["expected"] = df["pd_group"].astype(str).map(expected_dict)
     return df
 
 def preprocess_for_psi(file_path, segment):
@@ -109,7 +134,7 @@ def preprocess_for_psi(file_path, segment):
     df = read_excel_file(file_path)
     df = remove_duplicates(df)
     df = categorize_final_pd(df, segment)
-    df = add_expected(df)
+    df = add_expected(df, segment)
     return df
 
 def calculate_psi(df):
