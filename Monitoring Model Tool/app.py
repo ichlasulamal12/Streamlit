@@ -57,7 +57,7 @@ if st.button("Mulai Proses"):
 
             # Proses PSI
             df_psi = preprocess_for_psi(psi_file_path, segment)
-            psi_value, psi_df = calculate_psi(df_psi)
+            psi_result = calculate_psi(df_psi, segment)
 
             # Proses Max DPD & Bad Flag
             result_dfs = process_max_dpd_per_observation(gini_file_path, search_dpd_dir, selected_obs, selected_dpd)
@@ -67,8 +67,17 @@ if st.button("Mulai Proses"):
             gini_df, gini_metrics_df, ks_value, auroc_value, gini_value = calculate_gini_metrics(df_gini_dedup, segment)
 
             # Simpan ke session state
-            st.session_state["psi_df"] = psi_df
-            st.session_state["segment"] = segment
+            if segment == "Wholesale":
+                # Untuk wholesale, simpan hasil terpisah untuk setiap size
+                st.session_state["psi_results"] = psi_result
+                st.session_state["segment"] = segment
+            else:
+                # Untuk segmen lain, simpan seperti biasa
+                psi_value, psi_df = psi_result
+                st.session_state["psi_df"] = psi_df
+                st.session_state["psi_value"] = psi_value
+                st.session_state["segment"] = segment
+            
             st.session_state["max_dpd_all"] = result_dfs
             st.session_state["max_dpd_sheets"] = result_dfs
             st.session_state["gini_result"] = gini_metrics_df
@@ -77,8 +86,18 @@ if st.button("Mulai Proses"):
             st.session_state["gini_value"] = gini_value
 
             # Tampilkan hasil PSI
-            st.success(f"✅ PSI berhasil dihitung untuk {segment}: {psi_value:.4f}")
-            st.dataframe(psi_df)
+            if segment == "Wholesale":
+                st.success(f"✅ PSI berhasil dihitung untuk {segment}")
+                for size_key, size_result in psi_result.items():
+                    size_name = size_key.split("_")[1]  # Ambil "Large" atau "Medium"
+                    psi_value = size_result["psi_value"]
+                    psi_df = size_result["psi_df"]
+                    st.markdown(f"### 📊 PSI untuk {size_name} Size: {psi_value:.4f}")
+                    st.dataframe(psi_df)
+            else:
+                psi_value, psi_df = psi_result
+                st.success(f"✅ PSI berhasil dihitung untuk {segment}: {psi_value:.4f}")
+                st.dataframe(psi_df)
 
             # Tampilkan hasil Gini
             st.markdown("### 📈 Hasil Gini Metrics")
@@ -96,15 +115,39 @@ if st.button("Mulai Proses"):
 
 
 # Simpan dan Unduh Hasil
-if "psi_df" in st.session_state:
+if "psi_df" in st.session_state or "psi_results" in st.session_state:
     st.subheader("💾 Simpan dan Unduh Hasil")
     os.makedirs("output", exist_ok=True)
 
     # Simpan PSI
     if st.button("📥 Simpan Hasil PSI ke Excel"):
-        output_psi = f"output/psi_{st.session_state['segment'].lower()}.xlsx"
-        save_to_excel(st.session_state["psi_df"], output_psi)
-        st.success(f"✅ File PSI disimpan: `{output_psi}`")
+        if st.session_state['segment'] == "Wholesale":
+            # Untuk wholesale, simpan setiap size ke sheet terpisah
+            from openpyxl import Workbook
+            from openpyxl.utils.dataframe import dataframe_to_rows
+            
+            output_psi = f"psi_{st.session_state['segment'].lower()}.xlsx"
+            wb = Workbook()
+            wb.remove(wb.active)
+            
+            for size_key, size_result in st.session_state["psi_results"].items():
+                size_name = size_key.split("_")[1]  # Ambil "Large" atau "Medium"
+                psi_df = size_result["psi_df"]
+                # Bersihkan nilai NA sebelum disimpan ke Excel
+                psi_df_clean = psi_df.fillna("").replace([float('inf'), float('-inf')], "")
+                
+                ws = wb.create_sheet(title=f"PSI_{size_name}")
+                for r in dataframe_to_rows(psi_df_clean, index=False, header=True):
+                    ws.append(r)
+            
+            wb.save(output_psi)
+            st.success(f"✅ File PSI disimpan: `{output_psi}`")
+        else:
+            # Untuk segmen lain, simpan seperti biasa
+            output_psi = f"psi_{st.session_state['segment'].lower()}.xlsx"
+            save_to_excel(st.session_state["psi_df"], output_psi)
+            st.success(f"✅ File PSI disimpan: `{output_psi}`")
+        
         with open(output_psi, "rb") as f:
             st.download_button("⬇️ Unduh File PSI", data=f, file_name=os.path.basename(output_psi), mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -113,15 +156,24 @@ if "psi_df" in st.session_state:
         from openpyxl import Workbook
         from openpyxl.utils.dataframe import dataframe_to_rows
 
-        output_path = f"output/max_dpd_flag_{st.session_state['segment'].lower()}.xlsx"
+        output_path = f"max_dpd_flag_{st.session_state['segment'].lower()}.xlsx"
         wb = Workbook()
         wb.remove(wb.active)
 
         # Tambah sheet untuk tiap observasi
         for sheet, df in st.session_state["max_dpd_sheets"].items():
-            ws = wb.create_sheet(title=sheet[:31])  # Sheet name max 31 chars
-            for r in dataframe_to_rows(df, index=False, header=True):
-                ws.append(r)
+            # Pastikan df adalah DataFrame yang valid
+            if df is not None and hasattr(df, 'columns'):
+                # Bersihkan nilai NA sebelum disimpan ke Excel
+                df_clean = df.fillna("")  # Ganti NA dengan string kosong
+                # Pastikan tidak ada nilai infinit atau NaN yang tersisa
+                df_clean = df_clean.replace([float('inf'), float('-inf')], "")
+                
+                ws = wb.create_sheet(title=sheet[:31])  # Sheet name max 31 chars
+                for r in dataframe_to_rows(df_clean, index=False, header=True):
+                    ws.append(r)
+            else:
+                st.warning(f"⚠️ Data untuk sheet '{sheet}' tidak valid")
 
         wb.save(output_path)
         st.success(f"✅ File Max DPD disimpan: `{output_path}`")
@@ -130,7 +182,7 @@ if "psi_df" in st.session_state:
 
     # Simpan Gini
     if "gini_result" in st.session_state:
-        output_gini = f"output/gini_{st.session_state['segment'].lower()}.xlsx"
+        output_gini = f"gini_{st.session_state['segment'].lower()}.xlsx"
         save_to_excel(st.session_state["gini_result"], output_gini)
         st.success(f"✅ File Gini disimpan: `{output_gini}`")
         with open(output_gini, "rb") as f:
