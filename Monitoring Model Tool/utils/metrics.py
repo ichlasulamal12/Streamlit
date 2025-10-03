@@ -36,7 +36,7 @@ def generate_months(start_year: int, start_month: int, num_periods: int):
 def process_max_dpd_per_observation(input_file: str, dpd_dir: str, sheet_names: list[str], dpd_months: list[str]):
     search_dpd_dict = load_search_dpd(dpd_months, dpd_dir)
 
-    writer = pd.ExcelWriter("output/max_dpd_flag_output v2.xlsx", engine='openpyxl')
+    writer = pd.ExcelWriter("max_dpd_flag_output v2.xlsx", engine='openpyxl')
     all_combined = []
 
     start_year, start_month = extract_year_month(sheet_names[0])
@@ -122,21 +122,24 @@ def deduplicate_gini(df: pd.DataFrame) -> pd.DataFrame:
 
 # Fungsi untuk menghitung Gini, KS, dan AUROC berdasarkan segment
 def calculate_gini_metrics(df: pd.DataFrame, segment: str, score_col: str = "Final PD", flag_col: str = "Bad Flag"):
+    df = df.copy()
+    df = df[df[score_col].notnull()].copy()
+
     if segment == "SME":
         bins = [0, 0.0089, 0.0126, 0.0174, 0.0233, 0.0312, 0.0410, 1]
         labels = list(range(1, 8))
+        df["Group"] = pd.cut(df[score_col], bins=bins, labels=labels, include_lowest=True)
     elif segment == "Wholesale":
-        bins = [0, 0.007, 0.010, 0.014, 0.020, 0.028, 0.037, 1]  # contoh bin, sesuaikan bila perlu
-        labels = list(range(1, 8))
+        # Untuk Wholesale, langsung gunakan nilai grade sebagai Group
+        df["Group"] = df[score_col].astype(str)
+        # Pastikan label sesuai dengan grade yang ada
+        labels = sorted(df["Group"].unique())
     elif segment == "Mortgage":
-        bins = [0, 0.005, 0.009, 0.013, 0.018, 0.024, 0.031, 1]  # contoh bin, sesuaikan bila perlu
+        bins = [0, 0.005, 0.009, 0.013, 0.018, 0.024, 0.031, 1]
         labels = list(range(1, 8))
+        df["Group"] = pd.cut(df[score_col], bins=bins, labels=labels, include_lowest=True)
     else:
         raise ValueError("Segment tidak dikenali. Harus SME, Wholesale, atau Mortgage.")
-
-    df = df.copy()
-    df = df[df[score_col].notnull()].copy()
-    df["Group"] = pd.cut(df[score_col], bins=bins, labels=labels, include_lowest=True)
 
     grouped = df.groupby("Group", observed=False)
     result = grouped.agg(
@@ -154,7 +157,16 @@ def calculate_gini_metrics(df: pd.DataFrame, segment: str, score_col: str = "Fin
     result["prop_good"] = result["good"] / total_good
     result["prop_total"] = result["total"] / total_total
 
-    result = result.sort_values("Group", ascending=False).reset_index(drop=True)
+    # Pengurutan khusus untuk setiap segment
+    if segment == "Wholesale":
+        # Untuk Wholesale, urutkan berdasarkan tingkat risiko grade (Grade 7 = paling tinggi risiko)
+        grade_order = {"Grade 7": 7, "Grade 6": 6, "Grade 5": 5, "Grade 4": 4, "Grade 3": 3, "Grade 2": 2, "Grade 1": 1}
+        result["sort_key"] = result["Group"].map(grade_order)
+        result = result.sort_values("sort_key", ascending=False).reset_index(drop=True)
+        result = result.drop("sort_key", axis=1)
+    else:
+        # Untuk SME dan Mortgage, urutkan secara numerik
+        result = result.sort_values("Group", ascending=False).reset_index(drop=True)
     result["cum_bad"] = result["prop_bad"].cumsum()
     result["cum_good"] = result["prop_good"].cumsum()
     result["cum_total"] = result["prop_total"].cumsum()
