@@ -25,13 +25,14 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from scipy.stats import shapiro
 from pmdarima import auto_arima
 
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.lib.units import inch
-from reportlab.platypus import Table
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
 import io
+from datetime import datetime
 
 # =========================================================
 # CONFIG
@@ -1008,28 +1009,235 @@ with tab2:
             # =================================================
             # Export PDF
             # =================================================
-            with st.expander("📄 Export PDF Report", expanded=False):
+            with st.expander("📄 Generate Report", expanded=False):
 
                 if st.button("Generate PDF Report"):
 
                     buffer = io.BytesIO()
                     doc = SimpleDocTemplate(buffer)
                     elements = []
-
                     styles = getSampleStyleSheet()
-                    elements.append(Paragraph("PD Model Report", styles["Heading1"]))
-                    elements.append(Spacer(1, 0.3*inch))
 
-                    elements.append(Paragraph(f"Adj R2: {round(adj_r2,4)}", styles["Normal"]))
-                    elements.append(Paragraph(f"RMSE: {round(rmse,4)}", styles["Normal"]))
-                    elements.append(Paragraph(f"MAPE: {round(mape,4)}", styles["Normal"]))
+                    # =====================================================
+                    # COVER PAGE
+                    # =====================================================
+
+                    elements.append(Paragraph("PD Model Professional Report", styles["Heading1"]))
+                    elements.append(Spacer(1, 0.4 * inch))
+
+                    elements.append(Paragraph(
+                        f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                        styles["Normal"]
+                    ))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    elements.append(Paragraph(f"Dependent Variable: {y_var}", styles["Normal"]))
+                    elements.append(Paragraph(f"Independent Variables: {', '.join(selected_vars)}", styles["Normal"]))
+                    elements.append(Paragraph(f"Sample Size: {len(X_manual)}", styles["Normal"]))
+                    elements.append(Spacer(1, 0.5 * inch))
+
+                    elements.append(PageBreak())
+
+                    # =====================================================
+                    # EXECUTIVE SUMMARY
+                    # =====================================================
+
+                    elements.append(Paragraph("Executive Summary", styles["Heading2"]))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    summary_text = ""
+
+                    if adj_r2 > 0.7:
+                        summary_text += "Model explains strong variation in PD. "
+                    elif adj_r2 > 0.4:
+                        summary_text += "Model explains moderate variation in PD. "
+                    else:
+                        summary_text += "Model explanatory power is limited. "
+
+                    if reset_test.pvalue > 0.05:
+                        summary_text += "No functional form misspecification detected. "
+                    else:
+                        summary_text += "Potential functional form issue detected. "
+
+                    if bp_pvalue > 0.05:
+                        summary_text += "No heteroskedasticity detected. "
+                    else:
+                        summary_text += "Heteroskedasticity present. "
+
+                    if model_full.condition_number > 100:
+                        summary_text += "Multicollinearity risk observed."
+
+                    elements.append(Paragraph(summary_text, styles["Normal"]))
+                    elements.append(Spacer(1, 0.4 * inch))
+
+                    # =====================================================
+                    # MODEL STATISTICS
+                    # =====================================================
+
+                    elements.append(Paragraph("Model Statistics", styles["Heading2"]))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    stats_data = [
+                        ["Metric", "Value"],
+                        ["R2", round(r2,6)],
+                        ["Adj R2", round(adj_r2,6)],
+                        ["F-test p-value", round(f_pvalue,6)],
+                        ["Condition Number", round(model_full.condition_number,4)]
+                    ]
+
+                    stats_table = Table(stats_data, colWidths=[3*inch, 2*inch])
+                    stats_table.setStyle(TableStyle([
+                        ('BACKGROUND',(0,0),(-1,0),colors.lightgrey),
+                        ('GRID',(0,0),(-1,-1),0.5,colors.grey)
+                    ]))
+
+                    elements.append(stats_table)
+                    elements.append(Spacer(1, 0.4 * inch))
+
+                    # =====================================================
+                    # ASSUMPTION TESTS
+                    # =====================================================
+
+                    elements.append(Paragraph("Assumption Tests", styles["Heading2"]))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    assumption_data = [
+                        ["Test", "p-value"],
+                        ["RESET", round(reset_test.pvalue,6)],
+                        ["Shapiro", round(shapiro_p,6)],
+                        ["Breusch-Pagan", round(bp_pvalue,6)],
+                        ["Ljung-Box", round(lb_pvalue,6)]
+                    ]
+
+                    assumption_table = Table(assumption_data, colWidths=[3*inch,2*inch])
+                    assumption_table.setStyle(TableStyle([
+                        ('BACKGROUND',(0,0),(-1,0),colors.lightgrey),
+                        ('GRID',(0,0),(-1,-1),0.5,colors.grey)
+                    ]))
+
+                    elements.append(assumption_table)
+                    elements.append(PageBreak())
+
+                    # =====================================================
+                    # PERFORMANCE
+                    # =====================================================
+
+                    elements.append(Paragraph("Performance Metrics", styles["Heading2"]))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    perf_data = [
+                        ["RMSE", round(rmse,6)],
+                        ["MAPE (%)", round(mape,6)]
+                    ]
+
+                    perf_table = Table(perf_data, colWidths=[3*inch,2*inch])
+                    perf_table.setStyle(TableStyle([
+                        ('GRID',(0,0),(-1,-1),0.5,colors.grey)
+                    ]))
+
+                    elements.append(perf_table)
+                    elements.append(Spacer(1, 0.4 * inch))
+
+                    # =====================================================
+                    # COEFFICIENT TABLE
+                    # =====================================================
+
+                    elements.append(Paragraph("Coefficient Table", styles["Heading2"]))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    coef_data = [["Variable","Coef","Std Err","p-value"]]
+
+                    for var in model_full.params.index:
+                        coef_data.append([
+                            var,
+                            round(model_full.params[var],6),
+                            round(model_full.bse[var],6),
+                            round(model_full.pvalues[var],6)
+                        ])
+
+                    coef_table = Table(coef_data)
+                    coef_table.setStyle(TableStyle([
+                        ('BACKGROUND',(0,0),(-1,0),colors.lightgrey),
+                        ('GRID',(0,0),(-1,-1),0.5,colors.grey)
+                    ]))
+
+                    elements.append(coef_table)
+                    elements.append(PageBreak())
+
+                    # =====================================================
+                    # RESIDUAL PLOTS
+                    # =====================================================
+
+                    elements.append(Paragraph("Residual Diagnostics", styles["Heading2"]))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    # Residual vs Fitted
+                    fig, ax = plt.subplots()
+                    ax.scatter(model_full.fittedvalues, resid)
+                    ax.axhline(0, linestyle="--")
+                    ax.set_title("Residual vs Fitted")
+                    img_buffer = io.BytesIO()
+                    fig.savefig(img_buffer, format="png")
+                    plt.close(fig)
+                    img_buffer.seek(0)
+                    elements.append(Image(img_buffer, width=5*inch, height=3*inch))
+                    elements.append(Spacer(1, 0.3 * inch))
+
+                    # QQ Plot
+                    fig = sm.qqplot(resid, line="s")
+                    img_buffer = io.BytesIO()
+                    fig.savefig(img_buffer, format="png")
+                    plt.close(fig)
+                    img_buffer.seek(0)
+                    elements.append(Image(img_buffer, width=5*inch, height=3*inch))
+                    elements.append(PageBreak())
+
+                    # =====================================================
+                    # SCENARIO RESULT
+                    # =====================================================
+
+                    elements.append(Paragraph("Scenario Simulation Result", styles["Heading2"]))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    scenario_data = [
+                        ["Baseline Logit", round(baseline,6)],
+                        ["Shocked Logit", round(shocked,6)],
+                        ["Baseline PD", round(baseline_pd,6)],
+                        ["Shocked PD", round(shocked_pd,6)]
+                    ]
+
+                    scenario_table = Table(scenario_data)
+                    scenario_table.setStyle(TableStyle([
+                        ('GRID',(0,0),(-1,-1),0.5,colors.grey)
+                    ]))
+
+                    elements.append(scenario_table)
+                    elements.append(Spacer(1, 0.4 * inch))
+
+                    # =====================================================
+                    # GOVERNANCE SUMMARY
+                    # =====================================================
+
+                    elements.append(Paragraph("Governance Summary", styles["Heading2"]))
+                    elements.append(Spacer(1, 0.2 * inch))
+
+                    gov_note = "Model Passed Core Diagnostic Tests."
+
+                    if reset_test.pvalue < 0.05 or bp_pvalue < 0.05:
+                        gov_note = "Model Requires Review - Diagnostic Issues Detected."
+
+                    elements.append(Paragraph(gov_note, styles["Normal"]))
+
+                    # =====================================================
+                    # BUILD
+                    # =====================================================
 
                     doc.build(elements)
 
                     st.download_button(
                         "Download Report",
                         buffer.getvalue(),
-                        file_name="pd_model_report.pdf",
+                        file_name="PD_Model_Report.pdf",
                         mime="application/pdf"
                     )
 
