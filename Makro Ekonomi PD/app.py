@@ -2,16 +2,17 @@
 # CREDIT RISK MODELLING APPLICATION
 # =========================================================
 
+import hashlib
+import time
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools
 import statsmodels.api as sm
-
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
-
 from statsmodels.tsa.stattools import adfuller, kpss
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.stats.diagnostic import (
@@ -24,7 +25,6 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from scipy.stats import shapiro
 from pmdarima import auto_arima
-
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
@@ -33,6 +33,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 import io
 from datetime import datetime
+import pickle
 
 # =========================================================
 # CONFIG
@@ -41,74 +42,69 @@ from datetime import datetime
 st.set_page_config(layout="wide")
 
 # =========================================================
-# PROFESSIONAL FONT (IBM PLEX SANS)
+# PROFESSIONAL CREDIT RISK THEME
 # =========================================================
-
 st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
 <style>
+
+/* ================= GLOBAL ================= */
+
 html, body, [class*="css"]  {
-    font-family: 'IBM Plex Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
+    color: #1f2937;
+    font-size: 14px;
 }
-</style>
-""", unsafe_allow_html=True)
 
-# =========================================================
-# CORPORATE CLEAN STYLE
-# =========================================================
+/* ================= APP BACKGROUND ================= */
 
-st.markdown("""
-<style>
-
-/* Background */
 .stApp {
-    background-color: #F4F6F9;
+    background-color: #f4f6f9;
 }
 
-/* Headings */
+/* ================= HEADINGS ================= */
+
 h1 {
-    color: #1F2A44;
-    font-weight: 600;
+    color: #111827;
+    font-weight: 700;
 }
 
 h2, h3 {
-    color: #243B6B;
-    font-weight: 500;
+    color: #1f2937;
+    font-weight: 600;
 }
 
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background-color: #1F2937;
-}
+/* ================= METRIC CARDS ================= */
 
-section[data-testid="stSidebar"] * {
-    color: #E5E7EB;
-}
-
-/* Metric Card */
 [data-testid="stMetric"] {
-    background-color: #FFFFFF;
-    padding: 18px;
+    background-color: white;
     border-radius: 10px;
-    border: 1px solid #E5E7EB;
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0px 2px 6px rgba(0,0,0,0.05);
 }
 
-/* Expander */
+/* ================= DATAFRAME ================= */
+
+.stDataFrame {
+    background-color: white;
+    border-radius: 8px;
+}
+
+/* ================= EXPANDER ================= */
+
 details {
-    background-color: #FFFFFF;
-    border-radius: 10px;
-    border: 1px solid #E5E7EB;
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
     padding: 8px;
 }
 
-/* Dataframe */
-.stDataFrame {
-    background-color: #FFFFFF;
-}
+/* ================= BUTTON ================= */
 
-/* Buttons */
 button[kind="primary"] {
-    background-color: #1F4E79 !important;
+    background-color: #2563eb !important;
     border-radius: 8px !important;
     color: white !important;
 }
@@ -117,13 +113,205 @@ button[kind="secondary"] {
     border-radius: 8px !important;
 }
 
-/* Divider spacing */
+/* ================= TABS ================= */
+
+button[data-baseweb="tab"] {
+    font-weight: 600;
+}
+
+/* ================= DIVIDER ================= */
+
+hr {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* ================= CARD STYLE ================= */
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.05);
+}
+
+/* ================= EXECUTIVE KPI ================= */
+
+.kpi-card {
+    background: white;
+    border-left: 6px solid #2563eb;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+/* ================= RISK COLORS ================= */
+
+.risk-low {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.risk-medium {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.risk-high {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* ================= SCENARIO COLORS ================= */
+
+.scenario-base {
+    color: #2563eb;
+    font-weight: 600;
+}
+
+.scenario-good {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.scenario-bad {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+/* ================= FORWARD LOOKING BOX ================= */
+
+.forward-box {
+    background-color: #eef2ff;
+    border-left: 6px solid #4f46e5;
+    padding: 14px;
+    border-radius: 8px;
+}
+
+/* ================= SUCCESS BOX ================= */
+
+.success-box {
+    background-color: #ecfdf5;
+    border-left: 6px solid #10b981;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+/* ================= WARNING BOX ================= */
+
+.warning-box {
+    background-color: #fff7ed;
+    border-left: 6px solid #f59e0b;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+/* ================= ERROR BOX ================= */
+
+.error-box {
+    background-color: #fef2f2;
+    border-left: 6px solid #dc2626;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+/* ================= TABLE IMPROVEMENT ================= */
+
+thead tr th {
+    background-color: #f3f4f6 !important;
+}
+
+/* ================= MAIN PADDING ================= */
+
 .block-container {
-    padding-top: 2rem;
+    padding-top: 1.2rem;
 }
 
 </style>
 """, unsafe_allow_html=True)
+
+# =========================================================
+# LOGIN CONFIG
+# =========================================================
+
+USERS = {
+    "admin": hashlib.sha256("adm123_A1!".encode()).hexdigest(),
+    "riskuser": hashlib.sha256("risk123_A1!".encode()).hexdigest()
+}
+
+SESSION_TIMEOUT = 1800  # 30 minutes
+LOG_FILE = "user_activity_log.csv"
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if "username" not in st.session_state:
+    st.session_state.username = None
+
+if "last_activity" not in st.session_state:
+    st.session_state.last_activity = time.time()
+
+def log_user_action(username, action):
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    log_entry = f"{timestamp},{username},{action}\n"
+
+    if not os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "w") as f:
+            f.write("timestamp,username,action\n")
+
+    with open(LOG_FILE, "a") as f:
+        f.write(log_entry)
+
+def login_page():
+    st.title("🔐 Secure Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+
+        if username in USERS:
+            hashed_input = hashlib.sha256(password.encode()).hexdigest()
+
+            if hashed_input == USERS[username]:
+                st.session_state.authenticated = True
+                st.session_state.username = username
+                st.session_state.last_activity = time.time()
+                log_user_action(username, "Login")
+                st.success("Login successful")
+                st.rerun()
+            else:
+                st.error("Invalid credentials")
+        else:
+            st.error("Invalid credentials")
+
+def check_session_timeout():
+    current_time = time.time()
+
+    if st.session_state.authenticated:
+        if current_time - st.session_state.last_activity > SESSION_TIMEOUT:
+            log_user_action(st.session_state.username, "Session Timeout")
+            st.session_state.authenticated = False
+            st.session_state.username = None
+            st.warning("Session expired. Please login again.")
+            st.rerun()
+        else:
+            st.session_state.last_activity = current_time
+
+# =========================================================
+# AUTHENTICATION FLOW
+# =========================================================
+
+if not st.session_state.authenticated:
+    login_page()
+    st.stop()
+else:
+    check_session_timeout()
+
+# ===============================
+# MAIN APP STARTS HERE
+# ===============================
 
 st.title("Credit Risk Modelling Application")
 
@@ -137,22 +325,30 @@ Internal Quantitative Risk Tool
 # =========================================================
 
 with st.sidebar:
+    st.markdown(f"👤 Logged in as: **{st.session_state.username}**")
+    if st.button("Logout"):
+        log_user_action(st.session_state.username, "Logout")
+        st.session_state.authenticated = False
+        st.session_state.username = None
+        st.rerun()    
+    
+    st.divider()
     st.header("📂 Navigation")
-
     active_tab = st.radio(
         "Select Module",
-        ["📈 Macro Forecast", "📊 PD MEV Forecast"],
+        ["📈 Macro Forecast", "📊 PD MEV Forecast", "📉 Logit PD MEV Calculation"],
         key="active_module"
     )
     st.divider()
 
-tab1, tab2 = st.tabs([
+tab1, tab2, tab3 = st.tabs([
     "📈 Macro Forecast",
-    "📊 PD MEV Forecast"
+    "📊 PD MEV Forecast",
+    "📉 Logit PD MEV Calculation"
 ])
 
 # =========================================================
-# FORMAT HELPER
+# HELPER FUNCTIONS
 # =========================================================
 
 def fmt4(x):
@@ -163,6 +359,155 @@ def fmt6(x):
 
 def fmt_pct(x):
     return f"{x*100:.2f}%"
+
+def logistic(x):
+    return 1/(1+np.exp(-x))
+
+def good(coef, base_series, shock=0.1):
+
+    return np.where(
+        coef > 0,
+        np.where(base_series > 0,
+                 base_series + (base_series * -shock),
+                 base_series + (base_series * shock)),
+        np.where(base_series > 0,
+                 base_series + (base_series * shock),
+                 base_series + (base_series * -shock))
+    )
+
+def bad(coef, base_series, shock=0.1):
+
+    return np.where(
+        coef > 0,
+        np.where(base_series > 0,
+                 base_series + (base_series * shock),
+                 base_series + (base_series * -shock)),
+        np.where(base_series > 0,
+                 base_series + (base_series * -shock),
+                 base_series + (base_series * shock))
+    )
+
+@st.cache_data(show_spinner=False)
+def read_pd_actual(file_bytes):
+
+    if file_bytes is None:
+        return None
+
+    import io
+
+    df = pd.read_excel(
+        io.BytesIO(file_bytes),
+        sheet_name="PD%",
+        skiprows=5,
+        engine="openpyxl"
+    )
+
+    return df
+
+
+# =====================================================
+# READ PD RATING
+# =====================================================
+
+@st.cache_data(show_spinner=False)
+def read_pd_rating(file_bytes):
+
+    if file_bytes is None:
+        return None
+
+    import io
+
+    df = pd.read_excel(
+        io.BytesIO(file_bytes),
+        sheet_name="Migration PD Rating 2",
+        engine="openpyxl"
+    )
+
+    return df
+
+def pd_actual_segment(df):
+
+    return (
+        df["PD 1.3"].iloc[-1] +
+        df["PD 2.3"].iloc[-1]
+    )
+
+@st.cache_data(show_spinner=False)
+def compute_bankwide_pd(
+    pd_rating_mk,
+    pd_rating_inv,
+    pd_rating_con,
+    pd_rating_chn
+):
+
+    if any(v is None for v in [
+        pd_rating_mk,
+        pd_rating_inv,
+        pd_rating_con,
+        pd_rating_chn
+    ]):
+        return None
+
+    mk_num = pd_rating_mk.select_dtypes(include=np.number)
+    inv_num = pd_rating_inv.select_dtypes(include=np.number)
+    con_num = pd_rating_con.select_dtypes(include=np.number)
+    chn_num = pd_rating_chn.select_dtypes(include=np.number)
+
+    pd_rating_bw = mk_num + inv_num + con_num + chn_num
+
+    pd_rating_bw['Rating Movement'] = pd_rating_mk['Rating Movement'].copy()
+
+    pd_rating_bw = pd_rating_bw.iloc[:30,6:].dropna()
+
+    pd_rating_bw = pd_rating_bw[
+        [pd_rating_bw.columns[-1]] +
+        list(pd_rating_bw.columns[:-1])
+    ].set_index("Rating Movement")
+
+    pd_rating_bw.loc[1] = pd_rating_bw.iloc[:5].sum()
+    pd_rating_bw.loc[2] = pd_rating_bw.iloc[5:10].sum()
+    pd_rating_bw.loc[3] = pd_rating_bw.iloc[10:15].sum()
+    pd_rating_bw.loc[4] = pd_rating_bw.iloc[15:20].sum()
+    pd_rating_bw.loc[5] = pd_rating_bw.iloc[20:25].sum()
+
+    pd_rating_bw.loc["13%"] = pd_rating_bw.iloc[2] / pd_rating_bw.iloc[25]
+    pd_rating_bw.loc["14%"] = pd_rating_bw.iloc[3] / pd_rating_bw.iloc[25]
+    pd_rating_bw.loc["15%"] = pd_rating_bw.iloc[4] / pd_rating_bw.iloc[25]
+
+    pd_rating_bw.loc["23%"] = pd_rating_bw.iloc[7] / pd_rating_bw.iloc[26]
+    pd_rating_bw.loc["24%"] = pd_rating_bw.iloc[8] / pd_rating_bw.iloc[26]
+    pd_rating_bw.loc["25%"] = pd_rating_bw.iloc[9] / pd_rating_bw.iloc[26]
+
+    pd_rating_bw.loc["PD-1"] = pd_rating_bw.iloc[30:33].sum()
+    pd_rating_bw.loc["PD-2"] = pd_rating_bw.iloc[33:36].sum()
+
+    pd_actual_bw = pd_rating_bw.iloc[-2:].T.iloc[1:]
+
+    pd_actual_bw["PD-1 Smoothing"] = pd_actual_bw["PD-1"]
+
+    pd_actual_bw["PD-2 Smoothing"] = np.where(
+        pd_actual_bw["PD-2"] < pd_actual_bw["PD-1"],
+        pd_actual_bw["PD-1"],
+        pd_actual_bw["PD-2"]
+    )
+
+    pd_actual = (
+        pd_actual_bw["PD-1 Smoothing"].iloc[-1] +
+        pd_actual_bw["PD-2 Smoothing"].iloc[-1]
+    )
+
+    return pd_actual
+
+def compute_forward(avg_pd_hat, pd_actual):
+
+    ratio = avg_pd_hat / pd_actual
+
+    if ratio > 1.2:
+        return 1.2
+    elif ratio < 0.8:
+        return 0.8
+    else:
+        return ratio
 
 # =========================================================
 # ========================= TAB 1 =========================
@@ -326,6 +671,7 @@ with tab1:
                 lb = acorr_ljungbox(residuals, lags=[10], return_df=True)
                 return lb["lb_pvalue"].iloc[0]
 
+            log_user_action(st.session_state.username, "Run Macro Forecast")
             results = {}
 
             # ================= AUTO ARIMA =================
@@ -524,7 +870,7 @@ with tab2:
     if active_tab == "📊 PD MEV Forecast":
 
         with st.sidebar:
-            st.subheader("📊 PD Stress Testing Controls")
+            st.subheader("📊 PD MEV Forecast Controls")
 
             mev_file = st.file_uploader("Upload MEV CSV", key="mev_tab2")
             logit_file = st.file_uploader("Upload Logit CSV", key="logit_tab2")
@@ -618,8 +964,14 @@ with tab2:
                 index=mev_select.index,
                 columns=mev_select.columns
             )
+
+            scaler_mean = pd.Series(scaler.mean_, index=mev_select.columns)
+            scaler_std  = pd.Series(scaler.scale_, index=mev_select.columns)
+
         else:
             X_select = mev_select.copy()
+            scaler_mean = None
+            scaler_std  = None
 
         # =====================================================
         # EXPECTED SIGN
@@ -668,6 +1020,7 @@ with tab2:
 
         if st.button("Run Candidate Model Selection", key="run_candidate"):
 
+            log_user_action(st.session_state.username, "Run Candidate Model")
             results = []
 
             for k in range(1, 5):
@@ -772,6 +1125,7 @@ with tab2:
 
         if st.button("Run Final Model", key="run_final"):
 
+            log_user_action(st.session_state.username, "Run PD Manual Model")
             if len(selected_vars) == 0:
                 st.warning("Please select independent variables first.")
             else:
@@ -915,7 +1269,7 @@ with tab2:
             # =================================================
             # SCENARIO SIMULATION
             # =================================================
-            with st.expander("🚀 Scenario Simulation", expanded=True):
+            with st.expander("🚀 Scenario Simulation", expanded=False):
 
                 params = model_full.params
                 latest_X = X_manual.iloc[-1].copy()
@@ -936,6 +1290,7 @@ with tab2:
                         key=f"shock_{var}"
                     )
                     shocked_X[var] = latest_X[var] * (1 + shock / 100)
+                    log_user_action(st.session_state.username, "Scenario Simulation")
 
                 baseline = 0.0
                 shocked = 0.0
@@ -1007,10 +1362,40 @@ with tab2:
                 st.dataframe(scenario_df)
 
             # =================================================
+            # EXPORT TRAINED MODEL
+            # =================================================
+
+            with st.expander("💾 Export Model", expanded=False):
+
+                if st.button("Prepare Model File (.pkl)"):
+
+                    model_package = {
+                        "model": model_full,
+                        "selected_vars": selected_vars,
+                        "dependent_var": y_var,
+                        "normalize": normalize,
+                        "mean": scaler_mean,
+                        "std": scaler_std,
+                        "trained_at": datetime.now().strftime("%Y-%m-%d %H:%M")
+                    }
+
+                    model_bytes = pickle.dumps(model_package)
+
+                    st.download_button(
+                        label="Download Model (.pkl)",
+                        data=model_bytes,
+                        file_name="PD_OLS_Model.pkl",
+                        mime="application/octet-stream"
+                    )
+
+                    st.success("Model ready for download.")            
+
+            # =================================================
             # Export PDF
             # =================================================
             with st.expander("📄 Generate Report", expanded=False):
 
+                log_user_action(st.session_state.username, "Generate PDF Report")
                 if st.button("Generate PDF Report"):
 
                     buffer = io.BytesIO()
@@ -1250,3 +1635,427 @@ with tab2:
             gov_col2.metric("Sample Size", len(X_manual))
             gov_col3.metric("Model Pass Basic Tests",
                             "Yes" if (reset_test.pvalue>0.05 and bp_pvalue>0.05) else "Review Needed")
+
+# =========================================================
+# ========================= TAB 3 =========================
+# =========================================================
+
+with tab3:
+
+    st.header("Logit PD MEV Calculation Engine")
+
+    if active_tab == "📉 Logit PD MEV Calculation":
+        
+        with st.sidebar:
+
+            with st.expander("Model and MEV Files", expanded=True):
+                model_file = st.file_uploader("Model PKL",type=["pkl"])
+                mev_file = st.file_uploader("MEV Forecast",type=["xlsx"])
+            with st.expander("Segment Files", expanded=False):
+                mk_file = st.file_uploader("Modal Kerja",type=["xlsx"])
+                inv_file = st.file_uploader("Investasi",type=["xlsx"])
+                con_file = st.file_uploader("Konsumsi",type=["xlsx"])
+                chn_file = st.file_uploader("Channeling",type=["xlsx"])
+            st.divider()
+            st.caption("Version 1.0")
+            st.caption("Internal Use Only")
+    else:
+        model_file = None
+        mev_file = None
+        mk_file = None
+        inv_file = None
+        con_file = None
+        chn_file = None
+
+    # =====================================================
+    # LOAD MODEL
+    # =====================================================
+
+    if model_file:
+        st.subheader("1. Model")
+        model_data = pickle.load(model_file)
+
+        model = model_data["model"]
+        mean = model_data["mean"]
+        std = model_data["std"]
+        selected_vars = model_data["selected_vars"]
+        dependent_var = model_data["dependent_var"]
+
+        st.success("Model Loaded Successfully")
+
+        st.write("Dependent:", dependent_var)
+        st.write("Independent Variables:", selected_vars)
+        
+        # Detect lag variables
+        lag_vars = [v for v in selected_vars if "Lag" in v or "lag" in v]
+        mev_vars = [v for v in selected_vars if v not in lag_vars]
+
+        if len(lag_vars) > 0:
+            st.info(f"Lag variable detected: {lag_vars}")
+
+        # =====================================================
+        # MEV FORECAST
+        # =====================================================
+
+        st.divider()
+
+        if mev_file:
+            st.subheader("2. MEV Forecast")
+            mev = pd.read_excel(mev_file)
+
+            st.write("MEV Preview")
+            st.dataframe(mev.head())
+
+            mev_forecast = mev.iloc[-12:].reset_index(drop=True)
+
+            # =====================================================
+            # NORMALIZATION
+            # =====================================================
+
+            st.divider()
+            st.subheader("3. Normalization")
+
+            normalize = st.checkbox("Use Model Normalization", value=True)
+
+            # ==============================
+            # IF MODEL USES LAG
+            # ==============================
+
+            if len(lag_vars) > 0:
+
+                lag_var = lag_vars[0]
+
+                st.divider()
+                st.subheader("Initial Lag Logit")
+
+                initial_logit = st.number_input(
+                    f"Initial value for {lag_var}",
+                    value=0.0
+                )
+
+                if normalize:
+
+                    mev_scaled = pd.DataFrame()
+
+                    for var in selected_vars:
+
+                        # skip lag variable (not in MEV file)
+                        if var == lag_var:
+                            continue
+
+                        if var in mev_forecast.columns:
+
+                            mev_scaled[var] = (
+                                mev_forecast[var] - mean[var]
+                            ) / std[var]
+
+                        else:
+
+                            st.error(f"Variable {var} not found in MEV file")
+
+                    X_base = mev_scaled.copy()
+
+                    # normalize lag
+                    initial_logit_scaled = (
+                        initial_logit - mean[lag_var]
+                    ) / std[lag_var]
+
+                else:
+
+                    X_base = mev_forecast[
+                        [v for v in selected_vars if v != lag_var]
+                    ].copy()
+
+                    initial_logit_scaled = initial_logit
+
+
+            # ==============================
+            # IF MODEL HAS NO LAG
+            # ==============================
+
+            else:
+
+                if normalize:
+
+                    mev_scaled = pd.DataFrame()
+
+                    for var in selected_vars:
+
+                        if var in mev_forecast.columns:
+
+                            mev_scaled[var] = (
+                                mev_forecast[var] - mean[var]
+                            ) / std[var]
+
+                        else:
+
+                            st.error(f"Variable {var} not found in MEV file")
+
+                    X_base = mev_scaled.copy()
+
+                else:
+
+                    X_base = mev_forecast[selected_vars].copy()
+
+                initial_logit_scaled = None            
+            # =====================================================
+            # SCENARIO GENERATION
+            # =====================================================
+
+            st.divider()
+            st.subheader("4. Scenario Generation")
+
+            scenario = pd.DataFrame()
+
+            for var in mev_vars:
+
+                # skip lag variable (not from MEV)
+                if var in lag_vars:
+                    continue
+
+                coef = model.params[var]
+
+                base = X_base[var]
+
+                good_s = good(coef, base)
+                bad_s = bad(coef, base)
+
+                scenario[f"{var}_base"] = base
+                scenario[f"{var}_good"] = good_s
+                scenario[f"{var}_bad"] = bad_s
+
+                scenario[f"simulation_{var}_base"] = base*0.8 + good_s*0.1 + bad_s*0.1
+                scenario[f"simulation_{var}_good"] = base*0.1 + good_s*0.8 + bad_s*0.1
+                scenario[f"simulation_{var}_bad"] = base*0.1 + good_s*0.1 + bad_s*0.8
+
+            st.write("Scenario")
+            st.dataframe(scenario)
+
+            # =====================================================
+            # MODEL PREDICTION
+            # =====================================================
+
+            st.divider()
+            st.subheader("5. PD Projection")
+
+            run_projection = st.button("Run PD Projection")
+
+            def predict_pd(prefix):
+
+                if len(lag_vars) == 0:
+
+                    cols = [f"simulation_{v}_{prefix}" for v in mev_vars]
+
+                    X = scenario[cols].copy()
+                    X.columns = mev_vars
+
+                    X_const = sm.add_constant(X, has_constant="add")
+                    X_const = X_const.reindex(columns=model.params.index, fill_value=0)
+
+                    logit = model.predict(X_const)
+
+                    return logistic(logit)
+
+                else:
+
+                    results = []
+                    lag_val = initial_logit_scaled
+
+                    for i in range(len(scenario)):
+
+                        row = {}
+
+                        for var in selected_vars:
+
+                            if var in lag_vars:
+                                row[var] = lag_val
+                            else:
+                                row[var] = scenario[f"simulation_{var}_{prefix}"].iloc[i]
+
+                        X = pd.DataFrame([row])
+
+                        X_const = sm.add_constant(X, has_constant="add")
+                        X_const = X_const.reindex(columns=model.params.index, fill_value=0)
+
+                        logit_val = model.predict(X_const)[0]
+
+                        results.append(logit_val)
+
+                        # normalize lag for next iteration
+                        if normalize:
+                            lag_val = (logit_val - mean[lag_var]) / std[lag_var]
+                        else:
+                            lag_val = logit_val
+
+                    return logistic(pd.Series(results))
+
+            if run_projection:
+
+                with st.spinner("Running PD Projection..."):
+
+                    pd_base = predict_pd("base")
+                    pd_good = predict_pd("good")
+                    pd_bad = predict_pd("bad")
+
+                    result_df = pd.DataFrame({
+                        "PD_Base": pd_base,
+                        "PD_Good": pd_good,
+                        "PD_Bad": pd_bad
+                    })
+
+                    avg_pd_hat = np.mean([
+                        pd_base.iloc[-1],
+                        pd_good.iloc[-1],
+                        pd_bad.iloc[-1]
+                    ])
+
+                    st.session_state.avg_pd_hat = avg_pd_hat
+                    st.session_state.result_df = result_df
+                    st.session_state.scenario = scenario
+
+            if "result_df" in st.session_state:
+                st.dataframe(st.session_state.result_df)
+
+            if "avg_pd_hat" in st.session_state:
+                st.metric("Average PD Forecast", round(st.session_state.avg_pd_hat,4))                    
+
+            # =====================================================
+            # SEGMENT FILES and FORWARD LOOKING CALCULATION
+            # =====================================================
+
+            st.divider()
+            st.subheader("6. PD Segment and Forward Looking Factor")
+
+            if "avg_pd_hat" not in st.session_state or "result_df" not in st.session_state:
+                st.warning("Please run PD Projection first.")
+                st.stop()
+            run_calc = st.button("Run Calculation")
+
+            if run_calc:
+                with st.spinner("Running calculation..."):
+                    pd_mk = read_pd_actual(mk_file.getvalue())
+                    pd_inv = read_pd_actual(inv_file.getvalue())
+                    pd_con = read_pd_actual(con_file.getvalue())
+                    pd_chn = read_pd_actual(chn_file.getvalue())
+
+                    pd_rating_mk = read_pd_rating(mk_file.getvalue())
+                    pd_rating_inv = read_pd_rating(inv_file.getvalue())
+                    pd_rating_con = read_pd_rating(con_file.getvalue())
+                    pd_rating_chn = read_pd_rating(chn_file.getvalue())
+
+                    # =====================================================
+                    # FORWARD LOOKING CALCULATION
+                    # =====================================================
+                    results = []
+
+                    segments = {
+                        "Modal Kerja": pd_mk,
+                        "Investasi": pd_inv,
+                        "Konsumsi": pd_con,
+                        "Channeling": pd_chn
+                    }
+
+                    for seg, df in segments.items():
+
+                        if df is not None:
+
+                            try:
+
+                                pd_actual = pd_actual_segment(df)
+                                avg_pd_hat = st.session_state.avg_pd_hat
+
+                                fl = compute_forward(
+                                    avg_pd_hat,
+                                    pd_actual
+                                )
+
+                                results.append({
+                                    "Segment": seg,
+                                    "PD Actual": pd_actual,
+                                    "PD Forecast": avg_pd_hat,
+                                    "Forward Looking Factor": fl
+                                })
+
+                            except:
+                                continue
+
+                    result_segment = pd.DataFrame(results)
+                    st.session_state.result_segment = result_segment
+                    st.dataframe(result_segment)
+
+                    # =====================================================
+                    # BANKWIDE
+                    # =====================================================
+
+                    col1, col2 = st.columns(2)
+
+                    if len(results) > 0:
+                        bankwide_actual = None
+                        if (
+                            pd_rating_mk is not None and
+                            pd_rating_inv is not None and
+                            pd_rating_con is not None and
+                            pd_rating_chn is not None
+                        ):
+
+                            bankwide_actual = compute_bankwide_pd(
+                                pd_rating_mk,
+                                pd_rating_inv,
+                                pd_rating_con,
+                                pd_rating_chn
+                            )
+
+                            col1.metric(
+                                "Bankwide PD Actual",
+                                round(bankwide_actual,4)
+                            )
+
+                        else:
+
+                            st.warning("Please upload all segment files to compute Bankwide")
+
+                        if bankwide_actual is not None:
+
+                            forward_looking_bw = compute_forward(avg_pd_hat, bankwide_actual)
+
+                            col2.metric(
+                                "Bankwide Forward Looking",
+                                round(forward_looking_bw,4)
+                            )
+
+                    # =====================================================
+                    # EXPORT
+                    # =====================================================
+
+                    if "result_segment" in st.session_state:
+
+                        st.divider()
+                        st.subheader("7. Export Result")
+
+                        buffer = io.BytesIO()
+
+                        with pd.ExcelWriter(buffer) as writer:
+
+                            st.session_state.scenario.to_excel(
+                                writer,
+                                sheet_name="MEV Impact",
+                                index=False
+                            )
+
+                            st.session_state.result_df.to_excel(
+                                writer,
+                                sheet_name="PD Projection",
+                                index=False
+                            )
+
+                            st.session_state.result_segment.to_excel(
+                                writer,
+                                sheet_name="Segment Result",
+                                index=False
+                            )
+
+                        st.download_button(
+                            "Download Excel Report",
+                            buffer.getvalue(),
+                            "PD_MEV_Result.xlsx"
+                        )
