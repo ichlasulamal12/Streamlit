@@ -39,7 +39,183 @@ import pickle
 # CONFIG
 # =========================================================
 
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="PD Forecast System",
+                   page_icon="https://raw.githubusercontent.com/ichlasulamal12/Streamlit/main/Makro Ekonomi PD/logo.png",
+                   layout="wide")
+
+# =========================================================
+# LOGIN CONFIG
+# =========================================================
+
+USERS = {
+    "admin": hashlib.sha256("adm123_A1!".encode()).hexdigest(),
+    "riskuser": hashlib.sha256("risk123_A1!".encode()).hexdigest()
+}
+
+SESSION_TIMEOUT = 900
+LOG_FILE = "user_activity_log.csv"
+
+# =========================================================
+# SESSION INIT
+# =========================================================
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if "username" not in st.session_state:
+    st.session_state.username = None
+
+if "last_activity" not in st.session_state:
+    st.session_state.last_activity = time.time()
+
+# =========================================================
+# LOGIN STYLE
+# =========================================================
+
+if not st.session_state.authenticated:
+
+    st.markdown("""
+    <style>
+
+    [data-testid="stSidebar"] {display:none;}
+    header {visibility:hidden;}
+
+    .stApp {
+        background-color:#f4f6f9;
+    }
+
+    .login-box{
+        background:white;
+        padding:15px;
+        border-radius:12px;
+        box-shadow:0px 8px 25px rgba(0,0,0,0.12);
+        max-width:520px;
+        margin:auto;
+    }
+
+    .login-title{
+        text-align:center;
+        font-size:26px;
+        font-weight:600;
+        margin-bottom:20px;
+    }
+
+    .login-footer{
+        text-align:center;
+        font-size:12px;
+        color:#888;
+        margin-top:15px;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+# =========================================================
+# USER LOGGING
+# =========================================================
+
+def log_user_action(username, action):
+
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    log_entry = f"{timestamp},{username},{action}\n"
+
+    if not os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "w") as f:
+            f.write("timestamp,username,action\n")
+
+    with open(LOG_FILE, "a") as f:
+        f.write(log_entry)
+
+# =========================================================
+# LOGIN PAGE
+# =========================================================
+
+def login_page():
+
+    col1, col2, col3 = st.columns([1,4,1])
+
+    with col2:
+        st.markdown(
+        """
+        <div style="text-align:center;">
+            <img src="https://raw.githubusercontent.com/ichlasulamal12/Streamlit/main/Makro Ekonomi PD/logo.png" width="110">
+        </div>
+        """,
+        unsafe_allow_html=True
+        )       
+
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+
+
+        if st.button("Login", use_container_width=True):
+
+            if username in USERS:
+
+                hashed_input = hashlib.sha256(password.encode()).hexdigest()
+
+                if hashed_input == USERS[username]:
+
+                    st.session_state.authenticated = True
+                    st.session_state.username = username
+                    st.session_state.last_activity = time.time()
+
+                    log_user_action(username, "Login")
+
+                    st.success("Login successful")
+
+                    st.rerun()
+
+                else:
+                    st.error("Invalid credentials")
+
+            else:
+                st.error("Invalid credentials")
+
+
+        st.markdown(
+        '<div class="login-footer">Internal Risk Modelling System</div></div>',
+        unsafe_allow_html=True
+        )
+
+# =========================================================
+# SESSION TIMEOUT
+# =========================================================
+
+def check_session_timeout():
+
+    current_time = time.time()
+
+    if st.session_state.authenticated:
+
+        if current_time - st.session_state.last_activity > SESSION_TIMEOUT:
+
+            log_user_action(st.session_state.username, "Session Timeout")
+
+            st.session_state.authenticated = False
+            st.session_state.username = None
+
+            st.warning("Session expired. Please login again.")
+
+            st.rerun()
+
+        else:
+            st.session_state.last_activity = current_time
+
+# =========================================================
+# AUTHENTICATION FLOW
+# =========================================================
+
+if not st.session_state.authenticated:
+
+    login_page()
+
+    st.stop()
+
+else:
+
+    check_session_timeout()
 
 # =========================================================
 # PROFESSIONAL CREDIT RISK THEME
@@ -230,85 +406,6 @@ thead tr th {
 </style>
 """, unsafe_allow_html=True)
 
-# =========================================================
-# LOGIN CONFIG
-# =========================================================
-
-USERS = {
-    "admin": hashlib.sha256("adm123_A1!".encode()).hexdigest(),
-    "riskuser": hashlib.sha256("risk123_A1!".encode()).hexdigest()
-}
-
-SESSION_TIMEOUT = 1800  # 30 minutes
-LOG_FILE = "user_activity_log.csv"
-
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-
-if "username" not in st.session_state:
-    st.session_state.username = None
-
-if "last_activity" not in st.session_state:
-    st.session_state.last_activity = time.time()
-
-def log_user_action(username, action):
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-
-    log_entry = f"{timestamp},{username},{action}\n"
-
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
-            f.write("timestamp,username,action\n")
-
-    with open(LOG_FILE, "a") as f:
-        f.write(log_entry)
-
-def login_page():
-    st.title("🔐 Secure Login")
-
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-
-        if username in USERS:
-            hashed_input = hashlib.sha256(password.encode()).hexdigest()
-
-            if hashed_input == USERS[username]:
-                st.session_state.authenticated = True
-                st.session_state.username = username
-                st.session_state.last_activity = time.time()
-                log_user_action(username, "Login")
-                st.success("Login successful")
-                st.rerun()
-            else:
-                st.error("Invalid credentials")
-        else:
-            st.error("Invalid credentials")
-
-def check_session_timeout():
-    current_time = time.time()
-
-    if st.session_state.authenticated:
-        if current_time - st.session_state.last_activity > SESSION_TIMEOUT:
-            log_user_action(st.session_state.username, "Session Timeout")
-            st.session_state.authenticated = False
-            st.session_state.username = None
-            st.warning("Session expired. Please login again.")
-            st.rerun()
-        else:
-            st.session_state.last_activity = current_time
-
-# =========================================================
-# AUTHENTICATION FLOW
-# =========================================================
-
-if not st.session_state.authenticated:
-    login_page()
-    st.stop()
-else:
-    check_session_timeout()
-
 # ===============================
 # MAIN APP STARTS HERE
 # ===============================
@@ -403,7 +500,6 @@ def read_pd_actual(file_bytes):
     )
 
     return df
-
 
 # =====================================================
 # READ PD RATING
@@ -1686,12 +1782,11 @@ with tab3:
         st.write("Dependent:", dependent_var)
         st.write("Independent Variables:", selected_vars)
         
-        # Detect lag variables
-        lag_vars = [v for v in selected_vars if "Lag" in v or "lag" in v]
+        lag_vars = [v for v in selected_vars if v.strip().lower().startswith("lag")]
         mev_vars = [v for v in selected_vars if v not in lag_vars]
 
         if len(lag_vars) > 0:
-            st.info(f"Lag variable detected: {lag_vars}")
+            st.info(f"Lag variable from dependent detected: {lag_vars}")
 
         # =====================================================
         # MEV FORECAST
@@ -1929,23 +2024,30 @@ with tab3:
             if "avg_pd_hat" not in st.session_state or "result_df" not in st.session_state:
                 st.warning("Please run PD Projection first.")
                 st.stop()
+
             run_calc = st.button("Run Calculation")
 
             if run_calc:
+                st.session_state.segment_ready = True
+
+            # =====================================================
+            # MAIN CALCULATION
+            # =====================================================
+
+            if st.session_state.get("segment_ready", False):
+
                 with st.spinner("Running calculation..."):
-                    pd_mk = read_pd_actual(mk_file.getvalue())
-                    pd_inv = read_pd_actual(inv_file.getvalue())
-                    pd_con = read_pd_actual(con_file.getvalue())
-                    pd_chn = read_pd_actual(chn_file.getvalue())
 
-                    pd_rating_mk = read_pd_rating(mk_file.getvalue())
-                    pd_rating_inv = read_pd_rating(inv_file.getvalue())
-                    pd_rating_con = read_pd_rating(con_file.getvalue())
-                    pd_rating_chn = read_pd_rating(chn_file.getvalue())
+                    pd_mk = read_pd_actual(mk_file.getvalue()) if mk_file else None
+                    pd_inv = read_pd_actual(inv_file.getvalue()) if inv_file else None
+                    pd_con = read_pd_actual(con_file.getvalue()) if con_file else None
+                    pd_chn = read_pd_actual(chn_file.getvalue()) if chn_file else None
 
-                    # =====================================================
-                    # FORWARD LOOKING CALCULATION
-                    # =====================================================
+                    pd_rating_mk = read_pd_rating(mk_file.getvalue()) if mk_file else None
+                    pd_rating_inv = read_pd_rating(inv_file.getvalue()) if inv_file else None
+                    pd_rating_con = read_pd_rating(con_file.getvalue()) if con_file else None
+                    pd_rating_chn = read_pd_rating(chn_file.getvalue()) if chn_file else None
+
                     results = []
 
                     segments = {
@@ -1955,6 +2057,8 @@ with tab3:
                         "Channeling": pd_chn
                     }
 
+                    avg_pd_hat = st.session_state.avg_pd_hat
+
                     for seg, df in segments.items():
 
                         if df is not None:
@@ -1962,7 +2066,6 @@ with tab3:
                             try:
 
                                 pd_actual = pd_actual_segment(df)
-                                avg_pd_hat = st.session_state.avg_pd_hat
 
                                 fl = compute_forward(
                                     avg_pd_hat,
@@ -1980,8 +2083,70 @@ with tab3:
                                 continue
 
                     result_segment = pd.DataFrame(results)
-                    st.session_state.result_segment = result_segment
-                    st.dataframe(result_segment)
+
+                    # =====================================================
+                    # STORE ORIGINAL ONLY ON FIRST RUN
+                    # =====================================================
+
+                    if "result_segment_original" not in st.session_state:
+                        st.session_state.result_segment_original = result_segment.copy()
+
+                    if "result_segment" not in st.session_state:
+                        st.session_state.result_segment = result_segment.copy()
+
+                    # =====================================================
+                    # EDITABLE TABLE
+                    # =====================================================
+
+                    st.write("Edit PD Actual if needed")
+
+                    edited_segment = st.data_editor(
+                        st.session_state.result_segment,
+                        use_container_width=True,
+                        num_rows="fixed",
+                        key="segment_editor"
+                    )
+
+                    # =====================================================
+                    # RECALCULATE FORWARD LOOKING
+                    # =====================================================
+
+                    recalc_results = []
+
+                    for _, row in edited_segment.iterrows():
+
+                        pd_actual = row["PD Actual"]
+
+                        fl = compute_forward(
+                            st.session_state.avg_pd_hat,
+                            pd_actual
+                        )
+
+                        recalc_results.append(fl)
+
+                    edited_segment["Forward Looking Factor"] = recalc_results
+
+                    # SAVE BACK TO SESSION
+                    st.session_state.result_segment = edited_segment.copy()
+
+                    st.write("Updated Result")
+                    st.dataframe(edited_segment)
+
+                    # =====================================================
+                    # RESET BUTTON
+                    # =====================================================
+
+                    col1, col2 = st.columns([1,1])
+
+                    with col1:
+
+                        if st.button("Reset to Original"):
+
+                            st.session_state.result_segment = (
+                                st.session_state.result_segment_original.copy()
+                            )
+
+                            st.rerun()
 
                     # =====================================================
                     # BANKWIDE
@@ -1990,7 +2155,9 @@ with tab3:
                     col1, col2 = st.columns(2)
 
                     if len(results) > 0:
+
                         bankwide_actual = None
+
                         if (
                             pd_rating_mk is not None and
                             pd_rating_inv is not None and
@@ -2016,7 +2183,10 @@ with tab3:
 
                         if bankwide_actual is not None:
 
-                            forward_looking_bw = compute_forward(avg_pd_hat, bankwide_actual)
+                            forward_looking_bw = compute_forward(
+                                avg_pd_hat,
+                                bankwide_actual
+                            )
 
                             col2.metric(
                                 "Bankwide Forward Looking",
@@ -2036,17 +2206,19 @@ with tab3:
 
                         with pd.ExcelWriter(buffer) as writer:
 
-                            st.session_state.scenario.to_excel(
-                                writer,
-                                sheet_name="MEV Impact",
-                                index=False
-                            )
+                            if "scenario" in st.session_state:
+                                st.session_state.scenario.to_excel(
+                                    writer,
+                                    sheet_name="MEV Impact",
+                                    index=False
+                                )
 
-                            st.session_state.result_df.to_excel(
-                                writer,
-                                sheet_name="PD Projection",
-                                index=False
-                            )
+                            if "result_df" in st.session_state:
+                                st.session_state.result_df.to_excel(
+                                    writer,
+                                    sheet_name="PD Projection",
+                                    index=False
+                                )
 
                             st.session_state.result_segment.to_excel(
                                 writer,
