@@ -52,7 +52,7 @@ USERS = {
     "riskuser": hashlib.sha256("risk123_A1!".encode()).hexdigest()
 }
 
-SESSION_TIMEOUT = 900
+SESSION_TIMEOUT = 1800
 LOG_FILE = "user_activity_log.csv"
 
 # =========================================================
@@ -456,6 +456,18 @@ def fmt6(x):
 
 def fmt_pct(x):
     return f"{x*100:.2f}%"
+
+def create_download_file(df_arima, df_sarima, df_ets):
+    
+    output = io.BytesIO()
+
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df_arima.to_excel(writer, sheet_name="Auto_ARIMA", index=True)
+        df_sarima.to_excel(writer, sheet_name="SARIMA", index=True)
+        df_ets.to_excel(writer, sheet_name="ETS", index=True)
+
+    processed_data = output.getvalue()
+    return processed_data
 
 def logistic(x):
     return 1/(1+np.exp(-x))
@@ -950,6 +962,37 @@ with tab1:
             for name, res in results.items():
                 with st.expander(f"{name} Summary"):
                     st.text(res["model"].summary())                
+
+            df_arima = pd.DataFrame({
+                "Actual": series,
+                "InSample_Prediction": auto_fitted,
+                "Forecast": auto_forecast
+            })
+
+            df_sarima = pd.DataFrame({
+                "Actual": series,
+                "InSample_Prediction": sarima_fitted,
+                "Forecast": sarima_forecast
+            })
+
+            df_ets = pd.DataFrame({
+                "Actual": series,
+                "InSample_Prediction": ets_fitted,
+                "Forecast": ets_forecast
+            })
+
+            st.divider()
+
+            st.subheader("Download Forecast Result")
+
+            excel_file = create_download_file(df_arima, df_sarima, df_ets)
+
+            st.download_button(
+                label="⬇️ Download Forecast Result (Excel)",
+                data=excel_file,
+                file_name="macro_forecast_result.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
 # =========================================================
 # ========================= TAB 2 =========================
@@ -2029,6 +2072,7 @@ with tab3:
 
             if run_calc:
                 st.session_state.segment_ready = True
+                st.session_state.pop("segment_editor", None)
 
             # =====================================================
             # MAIN CALCULATION
@@ -2085,14 +2129,15 @@ with tab3:
                     result_segment = pd.DataFrame(results)
 
                     # =====================================================
-                    # STORE ORIGINAL ONLY ON FIRST RUN
+                    # SAVE RESULT TO SESSION
                     # =====================================================
 
+                    # simpan original hanya pertama kali
                     if "result_segment_original" not in st.session_state:
                         st.session_state.result_segment_original = result_segment.copy()
 
-                    if "result_segment" not in st.session_state:
-                        st.session_state.result_segment = result_segment.copy()
+                    # setiap run calculation overwrite result
+                    st.session_state.result_segment = result_segment.copy()
 
                     # =====================================================
                     # EDITABLE TABLE
@@ -2103,8 +2148,7 @@ with tab3:
                     edited_segment = st.data_editor(
                         st.session_state.result_segment,
                         use_container_width=True,
-                        num_rows="fixed",
-                        key="segment_editor"
+                        num_rows="fixed"
                     )
 
                     # =====================================================
