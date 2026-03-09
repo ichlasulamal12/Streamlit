@@ -16,7 +16,7 @@ Berikut beberapa proyek yang tersedia dalam repositori ini:
   Aplikasi interaktif untuk melakukan proses monitoring model machine learning.
 
 - `Makro Ekonomi PD/`  
-  Aplikasi interaktif untuk melakukan proses monitoring model machine learning.
+  Aplikasi interaktif untuk melakukan perhitungan PD pada CKPN.
 
 ---
 
