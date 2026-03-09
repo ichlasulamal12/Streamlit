@@ -15,6 +15,9 @@ Berikut beberapa proyek yang tersedia dalam repositori ini:
 - `Monitoring Model Tool/`  
   Aplikasi interaktif untuk melakukan proses monitoring model machine learning.
 
+- `Makro Ekonomi PD/`  
+  Aplikasi interaktif untuk melakukan proses monitoring model machine learning.
+
 ---
 
 ## ▶️ Cara Menjalankan Proyek
@@ -82,6 +85,6 @@ Saya adalah seorang data scientist dengan latar belakang statistik dan pengalama
 
 - 🌐 LinkedIn: [Ichlasul Amal](https://www.linkedin.com/in/ichlasulamal)  
 - 🔗 Portofolio: [Linktree Saya](https://linktr.ee/ichlasulamal)  
-- 📧 Email: ichlasulamal@email.com
+- 📧 Email: ichlasulamal@gmail.com
 
 ---
