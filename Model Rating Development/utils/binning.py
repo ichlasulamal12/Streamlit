@@ -79,6 +79,9 @@ def apply_binning(df, rules):
             if rule["mode"] == "quantile":
                 df_copy[col] = df_copy[col].astype(str)
 
+                # handle missing bin
+                df_copy[col] = df_copy[col].fillna("MISSING")
+
             else:
                 df_copy[col] = df_copy[col].map(rule["mapping"]).fillna("Other")
 
