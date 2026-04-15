@@ -72,6 +72,9 @@ def apply_woe_from_result(df, woe_result):
         if var in df.columns:
             df[var] = df[var].map(mapping)
 
+            # 🔥 FIX UTAMA
+            df[var] = df[var].fillna(0)
+
     return df
 
 
@@ -328,7 +331,10 @@ def run(project_id):
     df_binned = df_binned.astype(str)
 
     df_model = apply_woe_from_result(df_binned, woe_result)
+    # 🔥 pastikan tidak ada NaN
+    df_model = df_model.fillna(0)
     X = df_model[features].copy()
+    X = X.fillna(0)
 
     # ======================
     # PREDICT
