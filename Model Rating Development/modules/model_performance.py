@@ -260,6 +260,12 @@ def map_with_rules(x, rules):
 # ======================
 def run(project_id):
 
+    if "n_rating" not in st.session_state:
+        st.session_state["n_rating"] = 5
+
+    if "n_score_bins" not in st.session_state:
+        st.session_state["n_score_bins"] = 5
+
     if "rating_rules" not in st.session_state:
         st.session_state["rating_rules"] = []
 
@@ -318,6 +324,9 @@ def run(project_id):
         df_raw = df_test.copy()
         y_true = df_test[target]
     else:
+        if df_val is None:
+            st.warning("No validation data available")
+            return
         df_raw = df_val.copy()
         y_true = df_val[target]
 
@@ -356,7 +365,13 @@ def run(project_id):
 
         st.subheader("🏷️ Rating Setup")
 
-        n = st.number_input("Number of Rating", 2, 10, 5)
+        n = st.number_input(
+            "Number of Rating",
+            min_value=2,
+            max_value=10,
+            value=st.session_state["n_rating"],
+            key="n_rating"
+        )
 
         rating_rules = []
 
@@ -463,7 +478,13 @@ def run(project_id):
         # ===== RANGE SETUP =====
         st.subheader("🎯 Score Range Setup")
 
-        n_bins = st.number_input("Number of Score Bins", 2, 10, 5)
+        n_bins = st.number_input(
+            "Number of Score Bins",
+            min_value=2,
+            max_value=10,
+            value=st.session_state["n_score_bins"],
+            key="n_score_bins"
+        )
 
         score_rules = []
 
@@ -480,16 +501,16 @@ def run(project_id):
 
             low = c2.number_input(
                 f"Min Score {i+1}",
-                value=float(default_low),
-                format="%.0f",
+                value=int(default_low),
+                format="%d",
                 step=1,
                 key=f"sl{i}"
             )
 
             high = c3.number_input(
                 f"Max Score {i+1}",
-                value=float(default_high),
-                format="%.0f",
+                value=int(default_high),
+                format="%d",
                 step=1,
                 key=f"sh{i}"
             )
