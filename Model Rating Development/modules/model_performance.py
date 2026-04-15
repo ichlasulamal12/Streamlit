@@ -122,7 +122,7 @@ def load_calibrated_model(project_id):
 # ======================
 # METRICS
 # ======================
-def build_performance_table(df_perf, group_col, rules):
+def build_performance_table_rating(df_perf, group_col, rules):
 
     df = df_perf.copy()
 
@@ -152,6 +152,105 @@ def build_performance_table(df_perf, group_col, rules):
     # SORT (IMPORTANT)
     # ======================
     grouped = grouped.sort_values("min", ascending=True).reset_index(drop=True)
+
+    # ======================
+    # TOTALS
+    # ======================
+    total_good = grouped["good"].sum()
+    total_bad = grouped["bad"].sum()
+    total_all = grouped["total"].sum()
+
+    # ======================
+    # RATIOS
+    # ======================
+    grouped["bad_ratio"] = grouped["bad"] / grouped["total"]
+
+    grouped["good_pct"] = grouped["good"] / total_good
+    grouped["bad_pct"] = grouped["bad"] / total_bad
+    grouped["total_pct"] = grouped["total"] / total_all
+
+    # ======================
+    # CUMULATIVE (BOTTOM → UP)
+    # ======================
+    grouped["cum_good_pct"] = grouped["good_pct"][::-1].cumsum()[::-1]
+    grouped["cum_bad_pct"] = grouped["bad_pct"][::-1].cumsum()[::-1]
+    grouped["cum_total_pct"] = grouped["total_pct"][::-1].cumsum()[::-1]
+
+    # ======================
+    # KS (shift n+1)
+    # ======================
+    grouped["cum_good_next"] = grouped["cum_good_pct"].shift(-1)
+    grouped["cum_bad_next"] = grouped["cum_bad_pct"].shift(-1)
+
+    grouped["KS"] = (grouped["cum_good_next"] - grouped["cum_bad_next"]).abs()
+
+    # ======================
+    # ROC (your formula)
+    # ======================
+    grouped["ROC"] = (
+        0.5 * grouped["good_pct"] * grouped["bad_pct"]
+        + (1 - grouped["cum_good_pct"]) * grouped["bad_pct"]
+    )
+
+    # ======================
+    # CLEAN COLUMNS
+    # ======================
+    grouped = grouped.rename(columns={
+        group_col: "bucket",
+        "min": "min_bound",
+        "max": "max_bound"
+    })
+
+    grouped = grouped[[
+        "bucket",
+        "min_bound",
+        "max_bound",
+        "good",
+        "bad",
+        "total",
+        "bad_ratio",
+        "good_pct",
+        "bad_pct",
+        "total_pct",
+        "cum_good_pct",
+        "cum_bad_pct",
+        "cum_total_pct",
+        "KS",
+        "ROC"
+    ]]
+
+    return grouped
+
+def build_performance_table_score(df_perf, group_col, rules):
+
+    df = df_perf.copy()
+
+    # ======================
+    # AGGREGATION
+    # ======================
+    grouped = df.groupby(group_col)["target"].agg(
+        total="count",
+        bad="sum"
+    ).reset_index()
+
+    grouped["good"] = grouped["total"] - grouped["bad"]
+
+    # ======================
+    # ADD BOUNDARIES
+    # ======================
+    rule_df = pd.DataFrame(rules, columns=["name", "min", "max"])
+
+    grouped = grouped.merge(
+        rule_df,
+        left_on=group_col,
+        right_on="name",
+        how="left"
+    )
+
+    # ======================
+    # SORT (IMPORTANT)
+    # ======================
+    grouped = grouped.sort_values("min", ascending=False).reset_index(drop=True)
 
     # ======================
     # TOTALS
@@ -557,7 +656,7 @@ def run(project_id):
 
         if output_type == "Rating":
 
-            perf_table = build_performance_table(
+            perf_table = build_performance_table_rating(
                 df_perf,
                 "rating",
                 rating_rules
@@ -565,7 +664,7 @@ def run(project_id):
 
         else:
 
-            perf_table = build_performance_table(
+            perf_table = build_performance_table_score(
                 df_perf,
                 "score_range",
                 score_rules
