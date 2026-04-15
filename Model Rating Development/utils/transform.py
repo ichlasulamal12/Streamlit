@@ -10,17 +10,29 @@ def apply_transformation(df, binning_rules):
         if rule.get("type") != "numeric":
             continue
 
-        transform = rule.get("transform", "none")
+        transform = rule.get("transform")
 
-        if transform == "none":
+        # ======================
+        # SKIP JIKA TIDAK ADA TRANSFORM
+        # ======================
+        if not isinstance(transform, dict):
             continue
 
-        if transform["type"] == "log1p":
+        if transform.get("type") == "log1p":
+
             shift = transform.get("shift", 0)
 
+            # 🔥 HANDLE NEGATIVE VALUE
             if shift > 0:
                 df_out[col] = np.log1p(df_out[col] + shift)
             else:
-                df_out[col] = np.log1p(df_out[col])
+                # pastikan tidak log(negatif)
+                df_out[col] = np.log1p(df_out[col].clip(lower=0))
+
+    # ======================
+    # CLEAN DATA
+    # ======================
+    df_out = df_out.replace([np.inf, -np.inf], np.nan)
+    df_out = df_out.fillna(0)
 
     return df_out
