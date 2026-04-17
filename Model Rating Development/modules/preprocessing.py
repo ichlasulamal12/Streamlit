@@ -54,17 +54,35 @@ def run(project_id):
     )
 
     # ======================
-    # TYPE DETECTION
+    # TYPE DETECTION + EDITABLE
     # ======================
     st.subheader("🔍 Variable Types")
 
-    type_info = []
+    type_dict = {}
 
     for col in features:
-        col_type = detect_type(df[col])
-        type_info.append([col, col_type])
+        detected_type = detect_type(df[col])
 
-    type_df = pd.DataFrame(type_info, columns=["Variable", "Type"])
+        # Tambahan: deteksi datetime sederhana
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            detected_type = "datetime"
+
+        options = ["numeric", "categorical", "datetime"]
+
+        selected_type = st.selectbox(
+            f"Type for {col}",
+            options,
+            index=options.index(detected_type) if detected_type in options else 1,
+            key=f"type_{col}"
+        )
+
+        type_dict[col] = selected_type
+
+    type_df = pd.DataFrame({
+        "Variable": list(type_dict.keys()),
+        "Type": list(type_dict.values())
+    })
+
     st.dataframe(type_df, use_container_width=True)
 
     # ======================
