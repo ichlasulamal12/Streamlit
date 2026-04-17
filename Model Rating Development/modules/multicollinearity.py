@@ -27,6 +27,17 @@ def run(project_id):
     features = config["features"]
 
     # ======================
+    # VARIABLE SELECTION (NEW)
+    # ======================
+    st.subheader("📌 Select Variables for VIF")
+
+    selected_features = st.multiselect(
+        "Choose variables",
+        features,
+        default=features
+    )
+
+    # ======================
     # 🔥 APPLY TRANSFORMATION (FIX)
     # ======================
     df = apply_transformation(df, binning_rules)
@@ -46,7 +57,7 @@ def run(project_id):
     df_woe = pd.DataFrame(index=df.index)  # 🔥 ensure index align
     warning_cols = []
 
-    for col in features:
+    for col in selected_features:
         try:
             woe_table, _ = calculate_woe_iv(df_binned, col, target)
 
