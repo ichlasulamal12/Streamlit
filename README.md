@@ -15,6 +15,9 @@ Berikut beberapa proyek yang tersedia dalam repositori ini:
 - `Monitoring Model Tool/`  
   Aplikasi interaktif untuk melakukan proses monitoring model machine learning.
 
+- `Model Rating Development/`  
+  Aplikasi interaktif untuk melakukan pengembangan model credit rating dan credit scoring.  
+
 - `Makro Ekonomi PD/`  
   Aplikasi interaktif untuk melakukan perhitungan PD pada CKPN.
 
