@@ -118,6 +118,21 @@ def run(project_id):
             st.write("Validation:", val.shape)
 
         # ======================
+        # DATA PREVIEW (NEW)
+        # ======================
+        st.subheader("🔍 Data Preview")
+
+        with st.expander("Train Data"):
+            st.dataframe(train.head(100), use_container_width=True)
+
+        with st.expander("Test Data"):
+            st.dataframe(test.head(100), use_container_width=True)
+
+        if val is not None:
+            with st.expander("Validation Data"):
+                st.dataframe(val.head(100), use_container_width=True)
+
+        # ======================
         # SAVE
         # ======================
         if st.button("💾 Save Split"):
