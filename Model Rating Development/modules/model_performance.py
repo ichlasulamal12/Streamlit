@@ -14,7 +14,9 @@ from database.crud import (
     load_split,
     load_preprocessing,
     load_model_dataset,
-    load_binning
+    load_binning,
+    load_model_rules, 
+    save_model_rules
 )
 from database.db import get_connection
 
@@ -359,17 +361,26 @@ def map_with_rules(x, rules):
 # ======================
 def run(project_id):
 
+    # ======================
+    # SYNC WITH SAVED RULES
+    # ======================
     if "n_rating" not in st.session_state:
-        st.session_state["n_rating"] = 5
+        if "rating_rules" in st.session_state and len(st.session_state["rating_rules"]) > 0:
+            st.session_state["n_rating"] = len(st.session_state["rating_rules"])
+        else:
+            st.session_state["n_rating"] = 5
 
     if "n_score_bins" not in st.session_state:
-        st.session_state["n_score_bins"] = 5
+        if "score_rules" in st.session_state and len(st.session_state["score_rules"]) > 0:
+            st.session_state["n_score_bins"] = len(st.session_state["score_rules"])
+        else:
+            st.session_state["n_score_bins"] = 5
 
-    if "rating_rules" not in st.session_state:
-        st.session_state["rating_rules"] = []
+    if "rating_rules" not in st.session_state or "score_rules" not in st.session_state:
+        rating_db, score_db = load_model_rules(project_id)
 
-    if "score_rules" not in st.session_state:
-        st.session_state["score_rules"] = []
+        st.session_state["rating_rules"] = rating_db if rating_db else []
+        st.session_state["score_rules"] = score_db if score_db else []
         
     st.header("📊 Model Performance")
 
@@ -512,10 +523,23 @@ def run(project_id):
         with col_reset:
             if st.button("🔄 Reset Rating"):
                 st.session_state["rating_rules"] = []
+
+                save_model_rules(
+                    project_id,
+                    rating_rules=[],
+                    score_rules=st.session_state.get("score_rules")
+                )
+
                 st.rerun()
 
         # simpan kembali
         st.session_state["rating_rules"] = rating_rules
+
+        save_model_rules(
+            project_id,
+            rating_rules=rating_rules,
+            score_rules=st.session_state.get("score_rules")
+        )
 
         df_perf = pd.DataFrame({
             "prob": y_prob,
@@ -624,9 +648,22 @@ def run(project_id):
         with col_reset:
             if st.button("🔄 Reset Score"):
                 st.session_state["score_rules"] = []
+
+                save_model_rules(
+                    project_id,
+                    rating_rules=st.session_state.get("rating_rules"),
+                    score_rules=[]
+                )
+
                 st.rerun()
 
         st.session_state["score_rules"] = score_rules
+
+        save_model_rules(
+            project_id,
+            rating_rules=st.session_state.get("rating_rules"),
+            score_rules=score_rules
+        )
 
         # ===== PERFORMANCE TABLE =====
         df_perf = pd.DataFrame({
