@@ -54,6 +54,14 @@ def run(project_id):
     st.write("Target shape:", y.shape)
 
     # ======================
+    # DATA PREVIEW (ORIGINAL)
+    # ======================
+    with st.expander("🔍 View Original Dataset"):
+        preview_df = X.copy()
+        preview_df[target] = y
+        st.dataframe(preview_df.head(100), use_container_width=True)
+
+    # ======================
     # ORIGINAL DISTRIBUTION
     # ======================
     st.subheader("📊 Original Target Distribution")
@@ -145,6 +153,14 @@ def run(project_id):
 
             st.write("New Feature shape:", X_resampled.shape)
             st.write("New Target shape:", y_resampled.shape)
+
+            # ======================
+            # DATA PREVIEW (SMOTE)
+            # ======================
+            with st.expander("🔍 View Resampled Dataset"):
+                preview_resampled = pd.DataFrame(X_resampled, columns=X.columns)
+                preview_resampled[target] = y_resampled
+                st.dataframe(preview_resampled.head(100), use_container_width=True)
 
             # ======================
             # SAVE RESULT (SESSION)
