@@ -317,3 +317,53 @@ def load_model_dataset(project_id):
         "intercept": row["intercept"],
         "source": row["source"]
     }
+
+
+def save_model_rules(project_id, rating_rules=None, score_rules=None):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS model_rules (
+            project_id TEXT PRIMARY KEY,
+            rating_rules TEXT,
+            score_rules TEXT
+        )
+    """)
+
+    cursor.execute("""
+        INSERT INTO model_rules (project_id, rating_rules, score_rules)
+        VALUES (?, ?, ?)
+        ON CONFLICT(project_id) DO UPDATE SET
+            rating_rules=excluded.rating_rules,
+            score_rules=excluded.score_rules
+    """, (
+        project_id,
+        json.dumps(rating_rules) if rating_rules else None,
+        json.dumps(score_rules) if score_rules else None
+    ))
+
+    conn.commit()
+    conn.close()
+
+
+def load_model_rules(project_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT rating_rules, score_rules
+        FROM model_rules
+        WHERE project_id = ?
+    """, (project_id,))
+
+    row = cursor.fetchone()
+    conn.close()
+
+    if row is None:
+        return None, None
+
+    rating_rules = json.loads(row[0]) if row[0] else []
+    score_rules = json.loads(row[1]) if row[1] else []
+
+    return rating_rules, score_rules
