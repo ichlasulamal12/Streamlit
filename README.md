@@ -76,7 +76,7 @@ Berikut langkah-langkah umum untuk menjalankan salah satu proyek Streamlit:
 
 ## 🎯 Tujuan Repositori
 
-- Menyederhanakan penggunaan model statistik atau machine learning ke dalam aplikasi interaktif
+- Menyederhanakan pengembangan dan penggunaan model statistik atau machine learning ke dalam aplikasi interaktif
 - Menyajikan data dan insight dengan cara yang mudah dipahami
 - Menjadi portofolio dan dokumentasi eksperimen saya dalam dunia data
 
@@ -84,7 +84,7 @@ Berikut langkah-langkah umum untuk menjalankan salah satu proyek Streamlit:
 
 ## 👤 Tentang Saya
 
-Saya adalah seorang data scientist dengan latar belakang statistik dan pengalaman dalam pemodelan risiko kredit serta pengembangan aplikasi data interaktif.
+Saya adalah seorang data scientist dengan latar belakang statistika dan pengalaman dalam pemodelan risiko kredit serta pengembangan aplikasi data interaktif.
 
 - 🌐 LinkedIn: [Ichlasul Amal](https://www.linkedin.com/in/ichlasulamal)  
 - 🔗 Portofolio: [Linktree Saya](https://linktr.ee/ichlasulamal)  
