@@ -53,6 +53,17 @@ def run(project_id):
     target = config["target"]
     features = config["features"]
 
+    # ======================
+    # VARIABLE SELECTION (NEW)
+    # ======================
+    st.subheader("📌 Select Variables for Binning")
+
+    selected_features = st.multiselect(
+        "Choose variables",
+        features,
+        default=features
+    )    
+
     st.success(f"Using TRAIN data: {df.shape}")
 
     binning_rules = {}
@@ -60,7 +71,7 @@ def run(project_id):
     # ======================
     # LOOP FEATURES
     # ======================
-    for col in features:
+    for col in selected_features:
         st.subheader(f"🔹 {col}")
 
         col_data_numeric = pd.to_numeric(df[col], errors='coerce')
