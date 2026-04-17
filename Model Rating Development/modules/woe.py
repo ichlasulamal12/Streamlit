@@ -50,6 +50,17 @@ def run(project_id):
     features = config["features"]
 
     # ======================
+    # VARIABLE SELECTION (NEW)
+    # ======================
+    st.subheader("📌 Select Variables for WOE")
+
+    selected_features = st.multiselect(
+        "Choose variables",
+        features,
+        default=features
+    )    
+
+    # ======================
     # APPLY TRANSFORMATION
     # ======================
     df = apply_transformation(df, binning_rules)
@@ -69,7 +80,7 @@ def run(project_id):
     # ======================
     # LOOP FEATURES
     # ======================
-    for col in features:
+    for col in selected_features:
 
         st.subheader(f"🔹 {col}")
 
