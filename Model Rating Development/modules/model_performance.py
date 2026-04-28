@@ -368,13 +368,13 @@ def run(project_id):
         if "rating_rules" in st.session_state and len(st.session_state["rating_rules"]) > 0:
             st.session_state["n_rating"] = len(st.session_state["rating_rules"])
         else:
-            st.session_state["n_rating"] = 5
+            st.session_state["n_rating"] = 7
 
     if "n_score_bins" not in st.session_state:
         if "score_rules" in st.session_state and len(st.session_state["score_rules"]) > 0:
             st.session_state["n_score_bins"] = len(st.session_state["score_rules"])
         else:
-            st.session_state["n_score_bins"] = 5
+            st.session_state["n_score_bins"] = 7
 
     if "rating_rules" not in st.session_state or "score_rules" not in st.session_state:
         rating_db, score_db = load_model_rules(project_id)
