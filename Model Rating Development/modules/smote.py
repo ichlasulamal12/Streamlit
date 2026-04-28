@@ -42,7 +42,13 @@ def run(project_id):
     target = config["target"]
 
     df_train = split["train"].copy()
-    X = df_woe[selected_features].reset_index(drop=True)
+    valid_features = [col for col in selected_features if col in df_woe.columns]
+    missing_features = list(set(selected_features) - set(valid_features))
+
+    if missing_features:
+        st.warning(f"Missing features dropped: {missing_features}")
+
+    X = df_woe[valid_features].reset_index(drop=True)
     y = df_train[target].reset_index(drop=True)
 
     # ======================
