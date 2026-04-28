@@ -189,7 +189,13 @@ def run(project_id):
         y = st.session_state["y_model"]
         st.success("Using dataset from SMOTE / latest step")
     else:
-        X = df_woe[features]
+        valid_features = [col for col in features if col in df_woe.columns]
+        missing_features = list(set(features) - set(valid_features))
+
+        if missing_features:
+            st.warning(f"Missing features dropped: {missing_features}")
+
+        X = df_woe[valid_features]
         st.info("Using original WOE dataset")
 
     # ======================
