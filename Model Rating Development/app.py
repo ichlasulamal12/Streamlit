@@ -7,21 +7,111 @@ from database.crud import get_projects, create_project, delete_project
 # ======================
 # INIT
 # ======================
-create_tables()
 st.set_page_config(page_title="Credit Risk App", layout="wide")
+create_tables()
+
+
+st.markdown("""
+<style>
+/* Card-like container */
+.block-container {
+    padding-top: 2rem;
+}
+
+/* Data editor styling */
+div[data-testid="stDataEditor"] {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #E5E7E9;
+}
+
+/* Button styling */
+button[kind="primary"] {
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+/* General button */
+button {
+    border-radius: 8px !important;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: #F4F6F7;
+}
+
+section[data-testid="stSidebar"] button {
+    border-radius: 8px;
+    margin-bottom: 5px;
+}
+</style>
+""", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.title("📊 Credit Risk App")
+
+    # Navigation
+    if "page" not in st.session_state:
+        st.session_state["page"] = "project_list"
+
+    page = st.radio(
+        "Navigation",
+        ["Project List", "Project Dashboard"],
+        index=0 if st.session_state["page"] == "project_list" else 1
+    )
+
+    st.session_state["page"] = (
+        "project_list" if page == "Project List" else "project_dashboard"
+    )
+
+    # Active project
+    project_name = st.session_state.get("project_name")
+    if project_name:
+        st.markdown(f"""
+        <div style="padding:10px;border-radius:8px;
+        background-color:#EAF2F8;">
+        <b>Active Project</b><br>
+        {project_name}
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Pipeline (only if dashboard)
+    if st.session_state["page"] == "project_dashboard":
+        st.markdown("### 🧭 Pipeline")
+
+        modules = [
+            ("① Input Data", "input"),
+            ("② Preprocessing", "preprocessing"),
+            ("③ Split Data", "split"),
+            ("④ Binning", "binning"),
+            ("⑤ WOE", "woe"),
+            ("⑥ Multicollinearity", "vif"),
+            ("⑦ SMOTE", "smote"),
+            ("⑧ Training Model", "training"),
+            ("⑨ Model Performance", "performance"),
+        ]
+
+        if not st.session_state.get("project_id"):
+            st.warning("Select a project first")
+        else:
+            for label, key in modules:
+                if st.button(label, key=f"module_{key}", use_container_width=True):
+                    st.session_state["active_module"] = key
+
 
 # ======================
 # DIALOG: CREATE PROJECT
 # ======================
 @st.dialog("Create New Project")
 def create_project_dialog():
-
+    st.info("Enter a project name to create a new credit risk modelling workspace")
     project_name = st.text_input("Project Name")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("OK"):
+        if st.button("OK", key="create_ok"):
             if project_name.strip() == "":
                 st.warning("Project name cannot be empty")
                 return
@@ -31,38 +121,40 @@ def create_project_dialog():
             st.rerun()
 
     with col2:
-        if st.button("Cancel"):
+        if st.button("Cancel", key="create_cancel"):
             st.rerun()
 
 @st.dialog("⚠️ Confirm Delete")
 def delete_project_dialog(project_id, project_name):
 
     st.warning(f"Are you sure you want to delete project:")
-    st.error("This action cannot be undone")
+    st.caption("This action cannot be undone")
     st.write(f"**{project_name}**")
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("🗑 Confirm Delete"):
+        if st.button("🗑 Confirm Delete", key=f"delete_confirm_{project_id}"):
             delete_project(project_id)
             st.success("Project deleted")
             st.rerun()
 
     with col2:
-        if st.button("Cancel"):
+        if st.button("Cancel", key="delete_cancel"):
             st.rerun()
 
-# ======================
-# STATE NAVIGATION
-# ======================
-if "page" not in st.session_state:
-    st.session_state["page"] = "project_list"
 
 # ======================
 # PAGE 1: PROJECT LIST
 # ======================
 def project_list_page():
-    st.title("📊 Credit Risk Modelling")
+    st.markdown("""
+    <div style="padding:20px;border-radius:12px;
+    background: linear-gradient(90deg,#2E86C1,#5DADE2);
+    color:white;">
+        <h2>📊 Credit Risk Modelling</h2>
+        <p>Manage and monitor credit risk projects</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     projects = get_projects()
     df = pd.DataFrame(projects)
@@ -76,7 +168,9 @@ def project_list_page():
         st.subheader("📁 Project List")
 
         if not df.empty:
+            st.metric("Total Projects", len(df))
             df_display = df[["name", "created_at"]].copy()
+            df_display["created_at"] = pd.to_datetime(df_display["created_at"]).dt.strftime("%Y-%m-%d")
             df_display.insert(0, "Select", False)
 
             edited_df = st.data_editor(
@@ -100,6 +194,15 @@ def project_list_page():
                 selected_index = selected_rows.index[0]
                 selected_project_id = int(df.loc[selected_index, "id"])
                 selected_project_name = df.loc[selected_index, "name"]
+
+                if selected_project_name:
+                    st.markdown(f"""
+                    <div style="padding:10px;border-radius:8px;
+                    background-color:#E8F8F5;">
+                    ✅ <b>Selected Project:</b> {selected_project_name}
+                    </div>
+                    """, unsafe_allow_html=True)
+
             else:
                 selected_project_id = None
                 selected_project_name = None
@@ -113,8 +216,14 @@ def project_list_page():
     # LEFT: ACTION PANEL
     # ======================
     with col_left:
-        st.subheader("⚙️ Actions")
+        st.markdown("""
+        <div style="background-color:#ffffff;padding:15px;border-radius:12px;
+        box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+        <h4>⚙️ Actions</h4>
+        </div>
+        """, unsafe_allow_html=True)
 
+        st.markdown("<br>", unsafe_allow_html=True)
         # ======================
         # CREATE PROJECT (POPUP)
         # ======================
@@ -124,11 +233,12 @@ def project_list_page():
         # ======================
         # OPEN PROJECT
         # ======================
-        if st.button("📂 Open Project", use_container_width=True):
-            if selected_project_id:
+        if st.button("📂 Open Project", type="primary", use_container_width=True):
+            if selected_project_id is not None:
                 st.session_state["project_id"] = selected_project_id
                 st.session_state["project_name"] = selected_project_name
                 st.session_state["page"] = "project_dashboard"
+                st.session_state["active_module"] = None
                 st.rerun()
             else:
                 st.warning("Select a project first")
@@ -137,7 +247,7 @@ def project_list_page():
         # DELETE PROJECT
         # ======================
         if st.button("🗑 Delete Project", use_container_width=True):
-            if selected_project_id:
+            if selected_project_id is not None:
                 delete_project_dialog(selected_project_id, selected_project_name)
             else:
                 st.warning("Select a project first")
@@ -145,31 +255,15 @@ def project_list_page():
 # ======================
 # PAGE 2: PROJECT DASHBOARD
 # ======================
-def project_dashboard():
+def project_dashboard():    
     project_id = st.session_state.get("project_id")
     project_name = st.session_state.get("project_name")
 
+    if project_id is None:
+        st.warning("No active project. Please select a project from Project List")
+        return    
+
     st.title("📁 Project Dashboard")
-
-    if project_name:
-        st.success(f"Active Project: {project_name}")
-    else:
-        st.warning("Project name not found")
-
-    # ======================
-    # BACK BUTTON
-    # ======================
-    if st.button("⬅ Back to Project List"):
-        st.session_state["page"] = "project_list"
-        st.rerun()
-
-    st.divider()
-
-    # ======================
-    # MODULE NAVIGATION
-    # ======================
-    st.subheader("🧭 Modelling Pipeline")
-    st.markdown("➡️ Proceed step by step from ① to ⑨")
 
     modules = [
         ("① Input Data", "input"),
@@ -183,20 +277,41 @@ def project_dashboard():
         ("⑨ Model Performance", "performance"),
     ]
 
-    cols = st.columns(3)
+    if project_name:
+        st.markdown(f"""
+        <div style="background-color:#EAF2F8;padding:20px;border-radius:12px;">
+        <h3>📁 {project_name}</h3>
+        <p>Active Project</p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.warning("Project name not found")
 
-    for i, (label, key) in enumerate(modules):
-        col = cols[i % 3]
+    # ======================
+    # BACK BUTTON
+    # ======================
+    col1, col2 = st.columns([8,1])
 
-        if col.button(label, use_container_width=True):
-            st.session_state["active_module"] = key
+    with col2:    
+        if st.button("⬅ Back"):
+            st.session_state["page"] = "project_list"
+            st.session_state["active_module"] = None
+            st.rerun()
+
+    st.divider()
 
     # ======================
     # LOAD MODULE
     # ======================
     active = st.session_state.get("active_module")
+
     if active:
-        st.info(f"Active Module: {active.upper()}")
+        st.markdown(f"""
+        <div style="padding:8px;border-radius:8px;
+        background-color:#D6EAF8;">
+        Active: <b>{active.upper()}</b>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.divider()
 
