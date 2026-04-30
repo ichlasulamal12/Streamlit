@@ -83,7 +83,7 @@ def run(project_id):
         "Type": list(type_dict.values())
     })
 
-    st.dataframe(type_df, use_container_width=True)
+    st.dataframe(type_df, width='stretch')
 
     # ======================
     # MISSING SUMMARY
@@ -98,7 +98,7 @@ def run(project_id):
     missing_df["Missing %"] = (missing_df["Missing Count"] / len(df)) * 100
     missing_df = missing_df.sort_values(by="Missing %", ascending=False)
 
-    st.dataframe(missing_df, use_container_width=True)
+    st.dataframe(missing_df, width='stretch')
 
     # ======================
     # FILTER VARIABLE YANG ADA MISSING
