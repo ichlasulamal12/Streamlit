@@ -16,7 +16,7 @@ def run(project_id):
         st.success(f"Dataset loaded: {file_name}")
 
         st.write("### Preview Data")
-        st.dataframe(df_existing.head(), use_container_width=True)
+        st.dataframe(df_existing.head(), width='stretch')
 
         st.write("### Dataset Info")
         st.write(f"Shape: {df_existing.shape}")
@@ -59,7 +59,7 @@ def run(project_id):
                 # PREVIEW
                 # ======================
                 st.write("### Preview Data")
-                st.dataframe(df.head(), use_container_width=True)
+                st.dataframe(df.head(), width='stretch')
 
                 st.write(f"Shape: {df.shape}")
 
@@ -91,7 +91,7 @@ def run(project_id):
 
                 edited_types = st.data_editor(
                     type_df,
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True,
                     key="type_editor",
                     column_config={
@@ -162,7 +162,7 @@ def run(project_id):
                     df_conv = st.session_state["converted_df"]
 
                     st.write("### ✅ Converted Data Preview")
-                    st.dataframe(df_conv.head(), use_container_width=True)
+                    st.dataframe(df_conv.head(), width='stretch')
 
                     st.write("### Updated Types")
                     st.write(df_conv.dtypes)
