@@ -96,7 +96,7 @@ def run(project_id):
                 woe_table = woe_table.sort_values(by="woe", ascending=False)
 
             st.write(f"IV: {iv:.4f}")
-            st.dataframe(woe_table, use_container_width=True)
+            st.dataframe(woe_table, width='stretch')
 
             iv_summary.append({
                 "variable": col,
@@ -145,7 +145,7 @@ def run(project_id):
         st.success("WOE result saved to database")
 
         st.subheader("📦 WOE SOURCE (Saved)")
-        st.dataframe(woe_result.head(100), use_container_width=True)
+        st.dataframe(woe_result.head(100), width='stretch')
 
     else:
         st.warning("No WOE result generated")
@@ -162,7 +162,7 @@ def run(project_id):
 
         st.dataframe(
             iv_df.style.map(color_iv, subset=["iv"]),
-            use_container_width=True
+            width='stretch'
         )
     else:
         st.warning("No IV calculated")
