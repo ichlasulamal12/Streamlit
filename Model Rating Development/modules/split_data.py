@@ -123,14 +123,14 @@ def run(project_id):
         st.subheader("🔍 Data Preview")
 
         with st.expander("Train Data"):
-            st.dataframe(train.head(100), use_container_width=True)
+            st.dataframe(train.head(100), width='stretch')
 
         with st.expander("Test Data"):
-            st.dataframe(test.head(100), use_container_width=True)
+            st.dataframe(test.head(100), width='stretch')
 
         if val is not None:
             with st.expander("Validation Data"):
-                st.dataframe(val.head(100), use_container_width=True)
+                st.dataframe(val.head(100), width='stretch')
 
         # ======================
         # SAVE
