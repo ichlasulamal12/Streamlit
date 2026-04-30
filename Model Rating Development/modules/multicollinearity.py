@@ -105,7 +105,7 @@ def run(project_id):
         "std": df_woe.std()
     })
 
-    st.dataframe(validation_df, use_container_width=True)
+    st.dataframe(validation_df, width='stretch')
 
     # warning detail
     if warning_cols:
@@ -124,7 +124,7 @@ def run(project_id):
 
     n_rows = st.slider("Number of rows to display", 5, 100, 20)
 
-    st.dataframe(df_woe.head(n_rows), use_container_width=True)
+    st.dataframe(df_woe.head(n_rows), width='stretch')
 
     # ======================
     # VALIDATE NON-EMPTY
@@ -147,7 +147,7 @@ def run(project_id):
     vif_df = vif_df.sort_values(by="vif", ascending=False)
 
     st.subheader("📊 VIF Result")
-    st.dataframe(vif_df, use_container_width=True)
+    st.dataframe(vif_df, width='stretch')
 
     # ======================
     # RECOMMENDATION
