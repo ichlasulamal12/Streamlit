@@ -591,7 +591,7 @@ def run(project_id):
         st.dataframe(
             df_score[['variabel','kategori','woe','Coefficient_final','Score']]
             .sort_values(['variabel','kategori']),
-            use_container_width=True
+            width='stretch'
         )
 
         st.write("Intercept Score:", round(Offset, 2))
@@ -731,7 +731,7 @@ def run(project_id):
                 "KS": "{:.4f}",
                 "ROC": "{:.4f}"
             }),
-            use_container_width=True
+            width="stretch"
         )
 
         st.subheader("📈 Metrics")
