@@ -65,7 +65,7 @@ def run(project_id):
     with st.expander("🔍 View Original Dataset"):
         preview_df = X.copy()
         preview_df[target] = y
-        st.dataframe(preview_df.head(100), use_container_width=True)
+        st.dataframe(preview_df.head(100), width='stretch')
 
     # ======================
     # ORIGINAL DISTRIBUTION
@@ -75,7 +75,7 @@ def run(project_id):
     original_dist = y.value_counts().rename("count").to_frame()
     original_dist["ratio"] = original_dist["count"] / len(y)
 
-    st.dataframe(original_dist, use_container_width=True)
+    st.dataframe(original_dist, width='stretch')
 
     # ======================
     # OPTION
@@ -150,7 +150,7 @@ def run(project_id):
             new_dist = pd.Series(y_resampled).value_counts().rename("count").to_frame()
             new_dist["ratio"] = new_dist["count"] / len(y_resampled)
 
-            st.dataframe(new_dist, use_container_width=True)
+            st.dataframe(new_dist, width='stretch')
 
             # ======================
             # SHAPE INFO
@@ -166,7 +166,7 @@ def run(project_id):
             with st.expander("🔍 View Resampled Dataset"):
                 preview_resampled = pd.DataFrame(X_resampled, columns=X.columns)
                 preview_resampled[target] = y_resampled
-                st.dataframe(preview_resampled.head(100), use_container_width=True)
+                st.dataframe(preview_resampled.head(100), width='stretch')
 
             # ======================
             # SAVE RESULT (SESSION)
