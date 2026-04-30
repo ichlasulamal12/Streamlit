@@ -263,7 +263,7 @@ def run(project_id):
 
                 edited_df = st.data_editor(
                     value_counts,
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True,
                     key=f"{col}_group_editor"
                 )
@@ -287,7 +287,7 @@ def run(project_id):
                 result["risk_rank"] = range(1, len(result) + 1)
 
             st.write("### Final Binning Result")
-            st.dataframe(result, use_container_width=True)
+            st.dataframe(result, width='stretch')
 
         except Exception as e:
             st.error(f"Error in binning: {e}")
@@ -302,7 +302,7 @@ def run(project_id):
                 auto_result = calculate_bin_stats(df, col, target, auto_bins)
 
                 st.write("### Auto Binning Reference")
-                st.dataframe(auto_result, use_container_width=True)
+                st.dataframe(auto_result, width='stretch')
 
             except:
                 st.warning("Auto binning reference failed")
