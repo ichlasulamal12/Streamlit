@@ -10,7 +10,6 @@ from database.crud import get_projects, create_project, delete_project
 st.set_page_config(page_title="Credit Risk App", layout="wide")
 create_tables()
 
-
 st.markdown("""
 <style>
 /* Card-like container */
@@ -96,7 +95,7 @@ with st.sidebar:
             st.warning("Select a project first")
         else:
             for label, key in modules:
-                if st.button(label, key=f"module_{key}", use_container_width=True):
+                if st.button(label, key=f"module_{key}", width='stretch'):
                     st.session_state["active_module"] = key
 
 
@@ -175,7 +174,7 @@ def project_list_page():
 
             edited_df = st.data_editor(
                 df_display,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 key="project_table",
                 column_config={
@@ -227,13 +226,13 @@ def project_list_page():
         # ======================
         # CREATE PROJECT (POPUP)
         # ======================
-        if st.button("➕ Create Project", use_container_width=True):
+        if st.button("➕ Create Project", width='stretch'):
             create_project_dialog()
 
         # ======================
         # OPEN PROJECT
         # ======================
-        if st.button("📂 Open Project", type="primary", use_container_width=True):
+        if st.button("📂 Open Project", type="primary", width='stretch'):
             if selected_project_id is not None:
                 st.session_state["project_id"] = selected_project_id
                 st.session_state["project_name"] = selected_project_name
@@ -246,7 +245,7 @@ def project_list_page():
         # ======================
         # DELETE PROJECT
         # ======================
-        if st.button("🗑 Delete Project", use_container_width=True):
+        if st.button("🗑 Delete Project", width='stretch'):
             if selected_project_id is not None:
                 delete_project_dialog(selected_project_id, selected_project_name)
             else:
