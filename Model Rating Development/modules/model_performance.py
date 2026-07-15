@@ -67,15 +67,14 @@ def apply_woe_from_result(df, woe_result):
 
     for var in woe_result['variabel'].unique():
         mapping = (
-            woe_result[woe_result['variabel'] == var]
-            .set_index('kategori')['woe']
+            woe_result[woe_result["variabel"] == var]
+            .set_index("kategori")["woe"]
         )
 
-        if var in df.columns:
-            df[var] = df[var].map(mapping)
+        missing_woe = mapping.get("Missing", 0)
 
-            # 🔥 FIX UTAMA
-            df[var] = df[var].fillna(0)
+        df[var] = df[var].map(mapping)
+        df[var] = df[var].fillna(missing_woe)
 
     return df
 
@@ -333,7 +332,13 @@ def get_score(df, df_scorecard, intercept):
             df_scorecard['variabel'] == var
         ].set_index('kategori')['Score']
 
-        df_score[var + '_Score'] = df_score[var].map(score_map).fillna(0)
+        missing_score = score_map.get("Missing", 0)
+
+        df_score[var + "_Score"] = (
+            df_score[var]
+            .map(score_map)
+            .fillna(missing_score)
+        )
 
     score_cols = [c for c in df_score.columns if c.endswith('_Score')]
 
