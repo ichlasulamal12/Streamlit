@@ -130,20 +130,36 @@ def run(project_id):
             if col_type == "numeric":
                 method = st.selectbox(
                     f"Imputation method for {col}",
-                    ["mean", "median", "mode", "manual"],
+                    [
+                        "mean",
+                        "median",
+                        "mode",
+                        "manual",
+                        "separate_missing"
+                    ],
                     key=f"{col}_method"
                 )
 
                 if method == "manual":
+
                     value = st.number_input(
                         f"Manual value for {col}",
                         key=f"{col}_value"
                     )
+
                     imputation_rules[col] = {
                         "method": "manual",
                         "value": value
                     }
+
+                elif method == "separate_missing":
+
+                    imputation_rules[col] = {
+                        "method": "separate_missing"
+                    }
+
                 else:
+
                     imputation_rules[col] = {
                         "method": method
                     }
@@ -154,20 +170,34 @@ def run(project_id):
             else:
                 method = st.selectbox(
                     f"Imputation method for {col}",
-                    ["mode", "manual"],
+                    [
+                        "mode",
+                        "manual",
+                        "separate_missing"
+                    ],
                     key=f"{col}_cat_method"
                 )
 
                 if method == "manual":
+
                     value = st.text_input(
                         f"Manual value for {col}",
                         key=f"{col}_cat_value"
                     )
+
                     imputation_rules[col] = {
                         "method": "manual",
                         "value": value
                     }
+
+                elif method == "separate_missing":
+
+                    imputation_rules[col] = {
+                        "method": "separate_missing"
+                    }
+
                 else:
+
                     imputation_rules[col] = {
                         "method": "mode"
                     }
