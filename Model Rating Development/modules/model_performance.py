@@ -624,8 +624,6 @@ def run(project_id):
             width='stretch'
         )
 
-        st.write("Intercept Score:", round(Offset, 2))
-
         df_score_result = get_score(df_binned, df_score, InterceptScore)
 
         df_score_result["Odds"] = np.exp(
