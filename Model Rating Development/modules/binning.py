@@ -16,6 +16,13 @@ from utils.binning import (
 # HELPER: SORT NUMERIC BIN
 # ======================
 def get_lower(x):
+
+    if pd.isna(x):
+        return -999999999
+
+    if str(x) == "Missing":
+        return -999999999
+        
     try:
         s = str(x)
         lower = s.split(",")[0]
@@ -40,14 +47,16 @@ def run(project_id):
     # ======================
     split = load_split(project_id)
     config = load_preprocessing(project_id)
-    saved_rules = load_binning(project_id)  # 🔥 NEW
-
-    if saved_rules is None:
-        saved_rules = {}
+    saved_rules = load_binning(project_id)
 
     if split is None or config is None:
         st.warning("Complete previous steps first")
         return
+
+    imputation_rules = config.get("imputation_rules", {})
+
+    if saved_rules is None:
+        saved_rules = {}
 
     df = split["train"].copy()
     target = config["target"]
@@ -72,6 +81,12 @@ def run(project_id):
     # LOOP FEATURES
     # ======================
     for col in selected_features:
+
+        missing_as_bin = (
+            imputation_rules.get(col, {}).get("method")
+            == "separate_missing"
+        )
+
         st.subheader(f"🔹 {col}")
 
         col_data_numeric = pd.to_numeric(df[col], errors='coerce')
@@ -151,10 +166,10 @@ def run(project_id):
                     key=f"{col}_bins"
                 )
 
-                bins = create_numeric_bins(col_data_numeric, n_bins)
+                bins = create_numeric_bins(col_data_numeric, n_bins, separate_missing=missing_as_bin)
 
             else:
-                bins = create_categorical_bins(df[col])
+                bins = create_categorical_bins(df[col], separate_missing=missing_as_bin)
 
         # ======================
         # OPTIMAL BINNING
@@ -181,7 +196,8 @@ def run(project_id):
                     bins, optb_model = create_optimal_bins(
                         df_sample[col],
                         df_sample[target],
-                        monotonic_trend=monotonic
+                        monotonic_trend=monotonic,
+                        separate_missing=missing_as_bin
                     )
 
                     st.success("Optimal binning created")
@@ -193,7 +209,7 @@ def run(project_id):
                 except Exception as e:
                     st.error(f"Optbinning failed: {e}")
                     st.warning("Fallback to quantile binning")
-                    bins = create_numeric_bins(col_data_numeric, 5)
+                    bins = create_numeric_bins(col_data_numeric, 5, separate_missing=missing_as_bin)
 
         # ======================
         # MANUAL BINNING
@@ -214,7 +230,7 @@ def run(project_id):
                 })
 
                 quantiles = col_data.quantile([0.2, 0.4, 0.6, 0.8]).values
-                suggested = [round(q, 2) for q in quantiles]
+                suggested = [round(q, 20) for q in quantiles]
 
                 st.write("Suggested cut points:")
                 st.code(", ".join(map(str, suggested)))
@@ -235,7 +251,7 @@ def run(project_id):
                 if input_cut:
                     try:
                         cut_points = [float(x.strip()) for x in input_cut.split(",")]
-                        bins = create_manual_numeric_bins(col_data, cut_points)
+                        bins = create_manual_numeric_bins(col_data, cut_points, separate_missing=missing_as_bin)
                     except:
                         st.error("Invalid input")
                         continue
@@ -246,15 +262,26 @@ def run(project_id):
             else:
                 st.write("### Value Distribution")
 
-                value_counts = df[col].value_counts().reset_index()
+                value_counts = (
+                    df[col]
+                    .fillna("Missing")
+                    .value_counts(dropna=False)
+                    .reset_index()
+                )
                 value_counts.columns = ["Value", "Count"]
 
                 threshold = 0.05 * len(df)
 
-                value_counts["Group"] = value_counts.apply(
-                    lambda x: "Other" if x["Count"] < threshold else x["Value"],
-                    axis=1
-                )
+                def default_group(row):
+                    if missing_as_bin and row["Value"] == "Missing":
+                        return "Missing"
+
+                    if row["Count"] < threshold:
+                        return "Other"
+
+                    return row["Value"]
+
+                value_counts["Group"] = value_counts.apply(default_group, axis=1)
 
                 # 🔥 LOAD MAPPING DEFAULT
                 if col in saved_rules and "mapping" in saved_rules[col]:
@@ -269,13 +296,13 @@ def run(project_id):
                 )
 
                 mapping = dict(zip(edited_df["Value"], edited_df["Group"]))
-                bins = create_manual_categorical_bins(df[col], mapping)
+                bins = create_manual_categorical_bins(df[col], mapping, separate_missing=missing_as_bin)
 
         # ======================
         # FINAL RESULT
         # ======================
         try:
-            result = calculate_bin_stats(df, col, target, bins)
+            result = calculate_bin_stats(df, col, target, bins, separate_missing=missing_as_bin)
 
             if is_numeric:
                 result["lower_bound"] = result["feature"].apply(get_lower)
@@ -298,8 +325,8 @@ def run(project_id):
         # ======================
         if is_numeric:
             try:
-                auto_bins = create_numeric_bins(col_data_numeric, 5)
-                auto_result = calculate_bin_stats(df, col, target, auto_bins)
+                auto_bins = create_numeric_bins(col_data_numeric, 5, separate_missing=missing_as_bin)
+                auto_result = calculate_bin_stats(df, col, target, auto_bins, separate_missing=missing_as_bin)
 
                 st.write("### Auto Binning Reference")
                 st.dataframe(auto_result, width='stretch')
@@ -317,7 +344,8 @@ def run(project_id):
                     "type": "numeric",
                     "mode": "quantile",
                     "n_bins": n_bins,
-                    "transform": transform
+                    "transform": transform,
+                    "separate_missing": missing_as_bin
                 }
 
             elif mode == "Optimal (optbinning)":
@@ -325,7 +353,8 @@ def run(project_id):
                     "type": "numeric",
                     "mode": "optimal",
                     "splits": optb_model.splits.tolist(),
-                    "transform": transform
+                    "transform": transform,
+                    "separate_missing": missing_as_bin
                 }
 
             else:
@@ -333,20 +362,23 @@ def run(project_id):
                     "type": "numeric",
                     "mode": "manual",
                     "cut_points": cut_points,
-                    "transform": transform
+                    "transform": transform,
+                    "separate_missing": missing_as_bin
                 }
 
         else:
             if mode == "Quantile":
                 binning_rules[col] = {
                     "type": "categorical",
-                    "mode": "quantile"
+                    "mode": "quantile",
+                    "separate_missing": missing_as_bin
                 }
             else:
                 binning_rules[col] = {
                     "type": "categorical",
                     "mode": "manual",
-                    "mapping": mapping
+                    "mapping": mapping,
+                    "separate_missing": missing_as_bin
                 }
 
     # ======================
