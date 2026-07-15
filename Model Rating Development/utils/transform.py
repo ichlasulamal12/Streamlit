@@ -27,12 +27,15 @@ def apply_transformation(df, binning_rules):
                 df_out[col] = np.log1p(df_out[col] + shift)
             else:
                 # pastikan tidak log(negatif)
-                df_out[col] = np.log1p(df_out[col].clip(lower=0))
+                series = pd.to_numeric(df_out[col], errors="coerce")
+
+                series = series.clip(lower=0)
+
+                df_out[col] = np.log1p(series)
 
     # ======================
     # CLEAN DATA
     # ======================
     df_out = df_out.replace([np.inf, -np.inf], np.nan)
-    df_out = df_out.fillna(0)
 
     return df_out
