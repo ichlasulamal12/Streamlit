@@ -10,7 +10,7 @@ from database.crud import (
 )
 
 from utils.binning import apply_binning
-from utils.woe import calculate_woe_iv
+from utils.woe import calculate_woe_iv, sort_woe_table
 from utils.transform import apply_transformation
 
 
@@ -75,7 +75,13 @@ def run(project_id):
     iv_summary = []
     woe_results_all = []
 
-    alpha = st.slider("Smoothing (alpha)", 0.1, 2.0, 0.5)
+    alpha = st.slider(
+        "Smoothing (alpha)",
+        min_value=0.0,
+        max_value=2.0,
+        value=0.5,
+        step=0.05
+    )
 
     # ======================
     # LOOP FEATURES
@@ -91,7 +97,7 @@ def run(project_id):
             # SORT
             # ======================
             if binning_rules[col]["type"] == "numeric":
-                woe_table = woe_table.sort_values(by="bin")
+                woe_table = sort_woe_table(woe_table)
             else:
                 woe_table = woe_table.sort_values(by="woe", ascending=False)
 
