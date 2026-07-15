@@ -147,7 +147,7 @@ def delete_project_dialog(project_id, project_name):
 # ======================
 def project_list_page():
     st.markdown("""
-    <div style="padding:20px;border-radius:12px;
+    <div style="padding:10px;border-radius:12px;
     background: linear-gradient(90deg,#2E86C1,#5DADE2);
     color:white;">
         <h2>📊 Credit Risk Modelling</h2>
@@ -278,7 +278,7 @@ def project_dashboard():
 
     if project_name:
         st.markdown(f"""
-        <div style="background-color:#EAF2F8;padding:20px;border-radius:12px;">
+        <div style="background-color:#EAF2F8;padding:10px;border-radius:12px;">
         <h3>📁 {project_name}</h3>
         <p>Active Project</p>
         </div>
