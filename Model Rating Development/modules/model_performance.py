@@ -324,7 +324,7 @@ def build_performance_table_score(df_perf, group_col, rules):
 # ======================
 # SCORE FUNCTION
 # ======================
-def get_score(df, df_scorecard, intercept):
+def get_score(df, df_scorecard, intercept_score):
     df_score = df.copy()
 
     for var in df_scorecard['variabel'].unique():
@@ -342,7 +342,10 @@ def get_score(df, df_scorecard, intercept):
 
     score_cols = [c for c in df_score.columns if c.endswith('_Score')]
 
-    df_score['Score_total'] = df_score[score_cols].sum(axis=1) + intercept
+    df_score["Score_total"] = (
+        df_score[score_cols].sum(axis=1)
+        + intercept_score
+    )
 
     return df_score
 
@@ -578,10 +581,32 @@ def run(project_id):
         intercept = model_data["intercept"]
 
         BaseScore = 600
+        ReferenceScore = 600
         PDO = 50
+        ReferenceOdds = 50
 
         Factor = PDO / np.log(2)
-        Offset = BaseScore - Factor * intercept
+
+        Offset = (
+            ReferenceScore
+            - Factor * np.log(ReferenceOdds)
+        )
+
+        InterceptScore = (
+            Offset
+            - Factor * intercept
+        )        
+
+        st.info(f"""
+        ### Scorecard Configuration
+
+        - Base Score      : {BaseScore}
+        - PDO             : {PDO}
+        - Reference Odds  : {ReferenceOdds}:1
+        - Factor          : {Factor:.6f}
+        - Offset          : {Offset:.4f}
+        - Intercept Score : {InterceptScore:.4f}
+        """)
 
         df_score = woe_result.merge(
             coef_df,
@@ -601,7 +626,32 @@ def run(project_id):
 
         st.write("Intercept Score:", round(Offset, 2))
 
-        df_score_result = get_score(df_binned, df_score, Offset)
+        df_score_result = get_score(df_binned, df_score, InterceptScore)
+
+        df_score_result["Odds"] = np.exp(
+            (df_score_result["Score_total"] - Offset) / Factor
+        )
+
+        df_score_result["PD_from_Score"] = (
+            1 / (1 + df_score_result["Odds"])
+        )        
+
+        st.subheader("📊 Score Result")
+
+        st.dataframe(
+            df_score_result[
+                [
+                    "Score_total",
+                    "Odds",
+                    "PD_from_Score"
+                ]
+            ].style.format({
+                "Score_total": "{:.0f}",
+                "Odds": "{:.2f}",
+                "PD_from_Score": "{:.4%}"
+            }),
+            width="stretch"
+        )
 
         # ===== RANGE SETUP =====
         st.subheader("🎯 Score Range Setup")
