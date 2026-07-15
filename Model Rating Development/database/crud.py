@@ -310,8 +310,8 @@ def load_model_dataset(project_id):
         return None
 
     return {
-        "df_woe": pickle.loads(row["df_woe"]),
-        "features": json.loads(row["features"]),
+        "df_woe": pickle.loads(row["df_woe"]) if row["df_woe"] else None,
+        "features": json.loads(row["features"]) if row["features"] else None,
         "woe_result": pickle.loads(row["woe_result"]) if row["woe_result"] else None,
         "coef_df": pickle.loads(row["coef_df"]) if row["coef_df"] else None,
         "intercept": row["intercept"],
